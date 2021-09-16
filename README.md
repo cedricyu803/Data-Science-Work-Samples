@@ -1,4 +1,5 @@
 # Data-Science-Work-Samples
-My select works on data science and machine learning. Comments welcomed.
+This folder contains select works I have done in data science and machine learning. 
 
-Please see the PDF in each folder.
+Due to copyrights, I have removed the datasets.
+Each folder contains a PDF which is a report of what I have done, as well as the relevant Python scripts and some plots.
