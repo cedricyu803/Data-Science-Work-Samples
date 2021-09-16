@@ -1,0 +1,15 @@
+item_cnt_month_lag_4,,0.159563
+item_cnt_month_lag_12,,0.159231
+item_cnt_month_lag_3,,0.158793
+item_cnt_month_lag_1,,0.147439
+item_cnt_month_lag_2,,0.142664
+item_main_category_encoded,,0.059661
+month,,0.036318
+item_price_mean_lag_4,,0.025907
+item_price_mean_lag_3,,0.025673
+item_price_mean_lag_2,,0.024684
+item_price_mean_lag_1,,0.024054
+shop_city_encoded,,0.019733
+year,,0.007721
+shop_type_encoded,,0.007366
+first_open_month_num,,0.001194
