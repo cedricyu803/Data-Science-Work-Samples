@@ -1,0 +1,93 @@
+"""NYC taxi trip duration"""
+
+"""dataset_study.py """
+
+# correlation matrix: careful not to drop useful features after using them to engineer new ones
+
+# Reverse Geocoding--- mapping (latitude, longitude) to address--- in a quick way, using a KDTree to search a known dataset of coordinates and zipcodes for the closest match
+# database: US Census Gazatte at https://www.codementor.io/@bobhaffner/reverse-geocoding-bljjp5byw
+
+gaz_zip = pd.read_csv('us_census_gazateer/2021_Gaz_zcta_national.txt', delimiter = '\t', dtype = {'GEOID' : 'str'})
+gaz_zip.columns = gaz_zip.columns.str.strip()
+gaz_zip = gaz_zip[['GEOID', 'INTPTLAT', 'INTPTLONG']]
+
+# NYC opendata
+from simpledbf import Dbf5
+dbf = Dbf5('nyc_opendata/ZIP_CODE_040114.dbf')
+nyc_zip_county = dbf.to_dataframe()
+nyc_zip_county.columns = nyc_zip_county.columns.str.strip()
+nyc_zip_county = nyc_zip_county[['ZIPCODE', 'COUNTY']]
+
+gaz_zip_county = pd.merge(left = gaz_zip, right = nyc_zip_county, left_on = 'GEOID', right_on = 'ZIPCODE', how = 'left')
+
+"""
+use KDTree to map coordinates to nearest zipcode, then infer county
+"""
+
+from sklearn.neighbors import KDTree
+kdt = KDTree(gaz_zip[['INTPTLAT', 'INTPTLONG']])
+
+train_df['pickup_zipcode'] = gaz_zip_county.loc[kdt.query(train_df[['pickup_latitude', 'pickup_longitude']].to_numpy(), k=1, return_distance=False).squeeze(), 'GEOID'].values
+train_df['pickup_county'] = gaz_zip_county.loc[kdt.query(train_df[['pickup_latitude', 'pickup_longitude']].to_numpy(), k=1, return_distance=False).squeeze(), 'COUNTY'].values
+
+
+# plot coordinates on map with geopandas
+
+
+import descartes
+import geopandas  as gpd
+from shapely.geometry import Point, Polygon
+import pyproj
+
+# NYC map from NYC open data
+nyc_zip_map = gpd.read_file('nyc_opendata/ZIP_CODE_040114.shp').to_crs({'init': 'epsg:4326'})
+
+# plot coordinates on the map
+pickup_geometry = [Point(xy) for xy in zip(train_df['pickup_longitude'], train_df['pickup_latitude'])]
+dropoff_geometry = [Point(xy) for xy in zip(train_df['dropoff_longitude'], train_df['dropoff_latitude'])]
+
+dropoff_geo_df = gpd.GeoDataFrame(geometry = dropoff_geometry)
+pickup_geo_df = gpd.GeoDataFrame(geometry = pickup_geometry)
+
+fig, ax = plt.subplots(figsize = (15, 15))
+nyc_zip_map.plot(ax = ax, color = 'grey', alpha = 0.4, zorder=1)
+pickup_geo_df.plot(ax = ax, markersize = 20, color = 'red', marker = 'o', zorder=2, label = 'pickup location')
+dropoff_geo_df.plot(ax = ax, markersize = 20, color = 'blue', marker = '^', zorder=3, label = 'dropoff location')
+plt.legend()
+# plt.savefig('plots/training dataset/geodata/map1', dpi = 300)
+
+"""2_master.py """
+
+# for root-mean-squared-log-error (rmsle), use log(y + 1) as label because we use rmsle; using the original label may lead to negative predicted values; error would be nan
+
+# parse datetime columns
+from datetime import datetime
+def parser(s):
+    return datetime.strptime(s, '%Y-%m-%d %H:%M:%S')
+
+# import original training dataset
+train_df_raw = pd.read_csv(r'datasets\train.csv', low_memory = False, parse_dates = [2, 3], date_parser = parser)
+
+# get month
+def get_month(row):
+    return row.month
+X_train['month'] = X_train['pickup_datetime'].apply(get_month).astype(object)
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
