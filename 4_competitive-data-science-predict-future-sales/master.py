@@ -332,7 +332,7 @@ y_pred['item_cnt_month'] = XGBRpred
 y_pred = y_pred.drop(['shop_id', 'item_id'], axis = 1).set_index(['ID'])
 y_pred = clip_cnt(y_pred)
 y_pred.to_csv('y_pred_XGBM.csv')
-
+1.67870
 
 """ RandomizedSearchCV"""
 from sklearn.model_selection import RandomizedSearchCV
@@ -431,7 +431,7 @@ y_pred['item_cnt_month'] = RFRpred
 y_pred = y_pred.drop(['shop_id', 'item_id'], axis = 1).set_index(['ID'])
 y_pred = clip_cnt(y_pred)
 y_pred.to_csv('y_pred_RFR.csv')
-# 1.82240
+# 1.72399
 
 
 # for best score ever, 1.50672
