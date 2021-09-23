@@ -151,6 +151,10 @@ y_valid = pd.read_csv('engineered_datasets/y_valid.csv', index_col = [0]).squeez
 
 gc.collect()
 
+X_train_encoded4_scaled.shape
+# (127891, 24)
+
+
 
 #%% model scores
 
@@ -655,15 +659,122 @@ plt.tight_layout()
 # plt.savefig('plots/roc_all', dpi = 150)
 
 
+#%% PCA and truncated SVD
+
+"""
+try to use PCA and truncated SVD to see if performance improves
+KernelPCA and MDS cannot be used (memory error)
+"""
+
+from sklearn.decomposition import PCA, TruncatedSVD
+from sklearn.preprocessing import MinMaxScaler
+
+from sklearn.metrics import roc_curve, auc
+from xgboost import XGBClassifier
+
+n_comp = np.arange(9, 25, 3)
+auc_pca = []
+auc_TVSD = []
+
+
+for n in n_comp:
+
+    pca = PCA(n_components=n)
+    pca.fit(X_train_encoded4_scaled)
+    
+    X_train_pca = pca.transform(X_train_encoded4_scaled)
+    X_valid_pca = pca.transform(X_valid_encoded4_scaled)
+    X_test_pca = pca.transform(X_test_encoded4_scaled)
+    
+    scaler_pca = MinMaxScaler()
+    X_train_pca = scaler_pca.fit_transform(X_train_pca)
+    X_valid_pca = scaler_pca.transform(X_valid_pca)
+    X_test_pca = scaler_pca.transform(X_test_pca)
+    
+    
+    XGBC_model_pca = XGBClassifier(scale_pos_weight = (127891.-9247.)/9247., 
+                           eval_metric='auc', 
+                           n_estimators = 900, 
+                           max_depth = 7,
+                           learning_rate = 0.01,
+                           n_jobs = 8)
+    XGBC_model_pca.fit(X_train_pca, y_train, eval_set = [(X_train_pca, y_train), (X_valid_pca, y_valid)], early_stopping_rounds = 40)
+    y_valid_predict_proba_XGBC_model_pca = XGBC_model_pca.predict_proba(X_valid_pca)
+    
+    fpr_XGBC_model_pca, tpr_XGBC_model_pca, thresholds_XGBC_model_pca  = roc_curve(y_valid, y_valid_predict_proba_XGBC_model_pca[:,1])
+    auc_XGBC_model_pca = auc(fpr_XGBC_model_pca, tpr_XGBC_model_pca)
+    
+    auc_pca.append((n, auc_XGBC_model_pca))
+    
+    
+    
+    TSVD = TruncatedSVD(n_components=n)
+    TSVD.fit(X_train_encoded4_scaled)
+    
+    X_train_TSVD = TSVD.transform(X_train_encoded4_scaled)
+    X_valid_TSVD = TSVD.transform(X_valid_encoded4_scaled)
+    X_test_TSVD = TSVD.transform(X_test_encoded4_scaled)
+    
+    scaler_TSVD = MinMaxScaler()
+    X_train_TSVD = scaler_TSVD.fit_transform(X_train_TSVD)
+    X_valid_TSVD = scaler_TSVD.transform(X_valid_TSVD)
+    X_test_TSVD = scaler_TSVD.transform(X_test_TSVD)
+    
+    XGBC_model_TVSD = XGBClassifier(scale_pos_weight = (127891.-9247.)/9247., 
+                           eval_metric='auc', 
+                           n_estimators = 900, 
+                           max_depth = 7,
+                           learning_rate = 0.01,
+                           n_jobs = 8)
+    XGBC_model_TVSD.fit(X_train_TSVD, y_train, eval_set = [(X_train_TSVD, y_train), (X_valid_TSVD, y_valid)], early_stopping_rounds = 40)
+    
+    
+    y_valid_predict_proba_XGBC_model_TVSD = XGBC_model_TVSD.predict_proba(X_valid_TSVD)
+    
+    fpr_XGBC_model_TVSD, tpr_XGBC_model_TVSD, thresholds_XGBC_model_TVSD  = roc_curve(y_valid, y_valid_predict_proba_XGBC_model_TVSD[:,1])
+    auc_XGBC_model_TVSD = auc(fpr_XGBC_model_TVSD, tpr_XGBC_model_TVSD)
+    
+    auc_TVSD.append((n, auc_XGBC_model_TVSD))
+
+
+plt.figure(dpi=150)
+plt.plot([auc[0] for auc in auc_pca], [auc[1] for auc in auc_pca], marker=".", markersize = 20, label = 'PCA', color = 'skyblue')
+plt.plot([auc[0] for auc in auc_TVSD], [auc[1] for auc in auc_TVSD], marker=".", markersize = 20, label = 'TruncatedSVD', color = 'tomato')
+plt.plot([9,25], [0.8334866605600506, 0.8334866605600506], '--', color = 'grey', label = 'without dimensionality reduction')
+plt.xlabel('n_components')
+plt.xticks(np.arange(9, 25, 3))
+plt.ylabel('AUC')
+plt.legend()
+# plt.savefig('plots/dim_red_auc')
+
+auc_pca
+auc_TVSD
 
 
 
+"""
+TVSD with 12 features
+# XGBoost classifier: TSVD 0.781
+PCA with 12 features
+# XGBoost classifier: 0.789
+"""
 
 
+XGBC_model = XGBClassifier(scale_pos_weight = (127891.-9247.)/9247., 
+                           eval_metric='auc', 
+                           n_estimators = 900, 
+                           max_depth = 7,
+                           learning_rate = 0.01,
+                           n_jobs = 8)
+XGBC_model.fit(X_train_encoded4_scaled, y_train, eval_set = [(X_train_encoded4_scaled, y_train), (X_valid_encoded4_scaled, y_valid)], early_stopping_rounds = 40)
 
 
+y_valid_predict_proba_XGBC_model = XGBC_model.predict_proba(X_valid_encoded4_scaled)
 
-
+fpr_XGBC_model, tpr_XGBC_model, thresholds_XGBC_model  = roc_curve(y_valid, y_valid_predict_proba_XGBC_model[:,1])
+auc_XGBC_model = auc(fpr_XGBC_model, tpr_XGBC_model)
+print(auc_XGBC_model)
+# 0.8334866605600506
 
 
 
