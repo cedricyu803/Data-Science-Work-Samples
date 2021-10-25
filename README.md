@@ -37,10 +37,13 @@ From our exploratory data analysis, we identify outliers in the features and tra
 
 We train XGBRegressor and LGBMRegressor on 20M of the 55M training samples (to fit them into my 16GB RAM). After tuning the hyperparameters, we attained our best test RMSE of 2.96150 with LGBMRegressor. The test prediction follows closely the distribution of the training set fares (with outliers discarded), with expected small peaks that can be attributed to the flat rate between Manhattan and the airports.
 
+**4. IMDB Movie Review Sentiment Classification**
 
+A Kaggle competition about classifying the sentiment of IMDB movie reviews into good or bad. 
 
+We first perform text cleanup and pre-processing. We make use of various techniques in natural language processing: CountVectorizer and TfidfVectorizer from nltk, LSTM with GloVe embedding vectors, and a transformer network from Hugging Face, and compare the results and performance of different approaches. 
 
-
+All these approaches result in similar AUC validation and test socres, with the transformer network giving the best score. However, given the significantly higher computational costs and slight gain in performance of the neural netowrk models, TfidfVectorizer turns out to be the most cost-effective option.
 
 
 
