@@ -43,7 +43,7 @@ A Kaggle competition about classifying the sentiment of IMDB movie reviews into 
 
 We first perform text cleanup and pre-processing. We make use of various techniques in natural language processing: CountVectorizer and TfidfVectorizer from nltk, LSTM with GloVe embedding vectors, and a transformer network from Hugging Face, and compare the results and performance of different approaches. 
 
-All these approaches result in similar AUC validation and test socres, with the transformer network giving the best score. However, given the significantly higher computational costs and slight gain in performance of the neural netowrk models, TfidfVectorizer turns out to be the most cost-effective option.
+All these approaches result in similar AUC validation and test socres, with the transformer network giving the best score. The similarity in scores suggests that the order of the words is only marginally important. Given the significantly higher computational costs and slight gain in performance of the neural netowrk models, TfidfVectorizer turns out to be the most cost-effective option.
 
 
 
