@@ -1,0 +1,71 @@
+def text_preprocess(text, pad = False, max_len=3000):
+    # remove html syntax
+    text1 = BeautifulSoup(text).get_text() 
+    # get rid of unimportant punctuation marks
+    # !!! get rid of apostrophe too (and single quotation marks)
+    # text1 = re.sub(r'([^\d\w\'\s\.\-]+|[-\.]{2,})', ' ', text1)
+    text1 = re.sub(r'([^\d\w\s\.\-]+|[-\.]{2,})', ' ', text1)
+    # only keep alphabets and apostrophe
+    # text1 = re.sub(r'[^a-zA-Z_\'\s]+', ' ', text1)
+    # lower case
+    text1 = text1.lower()
+    # lemmatise
+    text1 = WNlemma_n.lemmatize(text1)
+    # tokenise
+    text1 = nltk.word_tokenize(text1)
+    if pad == True:
+        # pad to max_len by '-1 empty'
+        if len(text1) < max_len:
+            text1 += ['-1 empty' for i in range(max_len - len(text1))]
+    return text1
+
+pad with length 2700
+
+
+    X = Bidirectional(LSTM(256, return_sequences = True))(embeddings)
+    # this is the last LSTM layer; it should only output the final state for the next (non-LSTM) layer
+    X = Bidirectional(LSTM(256, return_sequences = False))(X)
+    X = Dense(64, activation = 'tanh')(X)
+    X = Dropout(.2)(X)
+    X = Dense(num_classes)(X)
+    if num_classes == 1:
+        # Add a sigmoid activation
+        X = Activation('sigmoid')(X)
+    elif num_classes > 1:
+        # Add a softmax activation
+        X = Activation('softmax')(X)
+
+#%% fit model
+
+model = sentiment_classification_model((max_len,), word_to_vec_map, word_to_index)
+# model.summary()
+
+model.compile(loss='binary_crossentropy', optimizer=tf.keras.optimizers.Adam(), metrics=[tf.keras.metrics.AUC()])
+# default learning_rate=0.001
+
+callback = tf.keras.callbacks.EarlyStopping(
+    monitor='val_loss', patience=5, restore_best_weights=True)
+
+# input_shape = (m, max_len)
+history = model.fit(X_train_indices, y_train1, validation_data = (X_valid_indices, y_valid1), epochs = 12, batch_size = 32, callbacks = [callback])
+
+Epoch 1/50
+625/625 [==============================] - 466s 738ms/step - loss: 0.6678 - auc_2: 0.6382 - val_loss: 0.5679 - val_auc_2: 0.8130
+Epoch 2/50
+625/625 [==============================] - 460s 736ms/step - loss: 0.4505 - auc_2: 0.8709 - val_loss: 0.3686 - val_auc_2: 0.9193
+Epoch 3/50
+625/625 [==============================] - 471s 753ms/step - loss: 0.3548 - auc_2: 0.9224 - val_loss: 0.3263 - val_auc_2: 0.9361
+Epoch 4/50
+625/625 [==============================] - 457s 732ms/step - loss: 0.3199 - auc_2: 0.9373 - val_loss: 0.3219 - val_auc_2: 0.9452
+Epoch 5/50
+625/625 [==============================] - 453s 725ms/step - loss: 0.2895 - auc_2: 0.9488 - val_loss: 0.2906 - val_auc_2: 0.9498
+Epoch 6/50
+625/625 [==============================] - 458s 733ms/step - loss: 0.2622 - auc_2: 0.9580 - val_loss: 0.3145 - val_auc_2: 0.9494
+Epoch 7/50
+625/625 [==============================] - 477s 764ms/step - loss: 0.2334 - auc_2: 0.9666 - val_loss: 0.2981 - val_auc_2: 0.9522
+Epoch 8/50
+625/625 [==============================] - 452s 724ms/step - loss: 0.1998 - auc_2: 0.9753 - val_loss: 0.2978 - val_auc_2: 0.9495
+Epoch 9/50
+625/625 [==============================] - 454s 726ms/step - loss: 0.1603 - auc_2: 0.9834 - val_loss: 0.3248 - val_auc_2: 0.9484
+Epoch 10/50
+625/625 [==============================] - 452s 724ms/step - loss: 0.1210 - auc_2: 0.9900 - val_loss: 0.4022 - val_auc_2: 0.9442
