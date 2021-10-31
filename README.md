@@ -43,8 +43,15 @@ A Kaggle competition about classifying the sentiment of IMDB movie reviews into 
 
 We first perform text cleanup and pre-processing. We make use of various techniques in natural language processing: CountVectorizer and TfidfVectorizer from nltk, LSTM with GloVe embedding vectors, and a transformer network from Hugging Face, and compare the results and performance of different approaches. 
 
-All these approaches result in similar AUC validation and test socres, with the transformer network giving the best score. The similarity in scores suggests that the order of the words is only marginally important. Given the significantly higher computational costs and slight gain in performance of the neural netowrk models, TfidfVectorizer turns out to be the most cost-effective option.
+All these approaches result in similar AUC validation and test socres, with the transformer network giving the best score (0.92304). The similarity in scores suggests that the order of the words is only marginally important. Given the significantly higher computational costs and slight gain in performance of the neural netowrk models, TfidfVectorizer turns out to be the most cost-effective option.
 
+**5. Disaster Tweets Classification**
+
+A Kaggle competition about classifying tweets to whether they are referring to a disaster. 
+
+Informed by an exploratory data analysis, we perform a text pre-processing, and extract and engineer features from the texts. Once again, we make use of various techniques in natural language processing: CountVectorizer and TfidfVectorizer from nltk, LSTM with GloVe embedding vectors, and a transformer network from Hugging Face, and compare the results and performance of different approaches. In particular, an optimal LSTM-based neural network is found using Keras Tuner. Except for the transformer netowrk, in all our approaches, we use both the text vectors and other extracted features in training the models and making predictions.
+
+All these approaches result in similar F1 socres, with the transformer network giving the best score (0.80784). Due to the small dataset size, no model has a significantly longer training time. This however contributes to a lower-than-desired performance and overfitting in the LSTM-based networks. 
 
 
 
