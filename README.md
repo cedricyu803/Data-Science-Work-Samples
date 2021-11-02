@@ -53,6 +53,8 @@ Informed by an exploratory data analysis, we perform a text pre-processing, and 
 
 All these approaches result in similar F1 socres, with the transformer network giving the best score (0.80784). Due to the small dataset size, no model has a significantly longer training time. This however contributes to a lower-than-desired performance and overfitting in the LSTM-based networks. 
 
+**6. Named Entity Recognition in Resume**
 
+We perform a named-entity recognition task on a dataset of resumes. Our approach is based on an assignment in the Sequence Models course on Coursera, offered by DeepLearning.AI. We expand it by studying the raw data, performing a more accurate and streamlined tokenisation, before re-training a Huggingface transformer model. Evaluating the model performance on the F1 score, we find a macro-averaged F1 score of 0.71 on the validation set.
 
 
