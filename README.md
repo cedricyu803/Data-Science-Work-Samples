@@ -58,4 +58,8 @@ All these approaches result in similar F1 socres, with the transformer network g
 
 We perform a named-entity recognition task on a dataset of resumes. Our approach is based on an assignment in the Sequence Models course on Coursera, offered by DeepLearning.AI. We expand it by studying the raw data, performing a more accurate and streamlined tokenisation, before re-training a Huggingface transformer model. Evaluating the model performance on the F1 score, we find a macro-averaged F1 score of 0.71 on the validation set.
 
+**7. Time Series: Global Temperatures**
 
+We study the global temperatures dataset available on Kaggle. In the Jupyter notebook EDA_AR(3).ipynb, we perform an exploratory data analysis, and decide to take the yearly averages and only use the data from 1850-2015. We find a clear increasing trend (hence global 'warming'), which is rendered stationary by taking the first difference. The auto-correlation function (ACF) and partial auto-correlation function (PACF) suggest that the first difference can be described by an AR(3) model. We fit AR(3) models. In LSTM.ipynb, we make use of lag features and fit LSTM models on the series. For both models, we use fixed partitioning and rolling forecast.
+
+In the end, on the validation set (yearly average temperature in 1986-2015), the mean absolute error (MAE) from LSTM fitted on first difference using rolling forecast is the lowest: 0.14682. This is only slight lower than that from using fixed partition. It is to be compared to the MAE of 0.18931 from naive forecast (lag 1), and 0.15548 from the AR(3) model using rolling forecast.
