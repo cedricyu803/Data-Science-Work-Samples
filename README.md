@@ -1,5 +1,6 @@
 # Data Science Work Samples
-This folder contains select works I have done in data science and machine learning. 
+This folder contains select works I have done in data science and machine learning. <br>
+From this collection I have omitted a lot of works on different other topics that I did following some Coursera courses. They include: question answering using a transformer model, machine translation and trigger-word detection with LSTM; object detection with YOLOv3 using transfer learning, image segmentation using U-Net, face recognition using the Siamese network, image classification using InceptionV3 with data augmentations, and then some.
 
 Due to copyrights, I have removed the datasets.
 
@@ -53,7 +54,7 @@ Informed by an exploratory data analysis, we perform a text pre-processing, and 
 
 All these approaches result in similar F1 socres, with the transformer network giving the best score (0.80784). Due to the small dataset size, no model has a significantly longer training time. This however contributes to a lower-than-desired performance and overfitting in the LSTM-based networks. 
 
-**6. Named Entity Recognition in Resume**
+**6. Named Entity Recognition in Resumes**
 
 We perform a named-entity recognition task on a dataset of resumes. Our approach is based on an assignment in the Sequence Models course on Coursera, offered by DeepLearning.AI. We expand it by studying the raw data, performing a more accurate and streamlined tokenisation, before re-training a Huggingface transformer model. Evaluating the model performance on the F1 score, we find a macro-averaged F1 score of 0.71 on the validation set.
 
