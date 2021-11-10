@@ -1,8 +1,8 @@
 # Data Science Work Samples
 This folder contains select works I have done in data science and machine learning. <br>
-From this collection I have omitted a lot of works on different other topics that I did following some Coursera courses. They include: question answering using a transformer model, machine translation and trigger-word detection with LSTM; object detection with YOLOv3 using transfer learning, image segmentation using U-Net, face recognition using the Siamese network, image classification using InceptionV3 with data augmentations, and then some.
+From this collection I have omitted a lot of works on different other topics that I did following some Coursera courses. They include: machine translation and trigger-word detection with LSTM; object detection with YOLOv3 using transfer learning, image segmentation using U-Net, face recognition using the Siamese network, image classification using InceptionV3 with data augmentations, and then some.
 
-Due to copyrights, I have removed the datasets.
+Due to copyrights, I have removed the datasets and pre-trained models.
 
 Each folder contains a PDF report of what I have done, as well as the relevant Python scripts and some plots.
 
@@ -63,3 +63,8 @@ We perform a named-entity recognition task on a dataset of resumes. Our approach
 We study the global temperatures dataset available on Kaggle. In the Jupyter notebook EDA_AR(3).ipynb, we perform an exploratory data analysis, and decide to take the yearly averages and only use the data from 1850-2015. We find a clear increasing trend (hence global 'warming'), which is rendered stationary by taking the first difference. The auto-correlation function (ACF) and partial auto-correlation function (PACF) suggest that the first difference can be described by an AR(3) model. We fit AR(3) models. In LSTM.ipynb, we make use of lag features and fit LSTM models on the series. For both models, we use fixed partitioning and rolling forecast.
 
 In the end, on the validation set (yearly average temperature in 1986-2015), the mean absolute error (MAE) from LSTM fitted on first difference using rolling forecast is the lowest: 0.14682. This is only slight lower than that from using fixed partition. It is to be compared to the MAE of 0.18931 from naive forecast (lag 1), and 0.15548 from the AR(3) model using rolling forecast.
+
+**8. Transformer: Question Answering**
+
+We follow an assignment in the Sequence Models course on Coursera offered by DeepLearning.AI, which makes use of a Huggingface transformer model to construct a Question Answering machine. See the Python script file in the folder for implementation.
+
