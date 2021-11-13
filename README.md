@@ -38,6 +38,8 @@ From our exploratory data analysis, we identify outliers in the features and tra
 
 We train XGBRegressor and LGBMRegressor on 20M of the 55M training samples (to fit them into my 16GB RAM). After tuning the hyperparameters, we attained our best test RMSE of 2.96150 with LGBMRegressor. The test prediction follows closely the distribution of the training set fares (with outliers discarded), with expected small peaks that can be attributed to the flat rate between Manhattan and the airports.
 
+We also performed a baseline model evaluation with minimal pre-processing on Google Cloud.
+
 **4. IMDB Movie Review Sentiment Classification**
 
 A Kaggle competition about classifying the sentiment of IMDB movie reviews into good or bad. 
