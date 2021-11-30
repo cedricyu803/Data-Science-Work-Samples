@@ -20,7 +20,7 @@ We explore the monthly aggregated compliance rate as a time series and find that
 
 **2. Competitive Data Science: Predict Future Sales**
 
-A Kaggle competition: given the sales records of the items sold in each shop of 1C Company during the time period January 2013 – October 2015, we are tasked with predicting the total sales (by number) for every product and store in the coming month, i.e. November 2015.
+Given the sales records of the items sold in each shop of 1C Company during the time period January 2013 – October 2015, we are tasked with predicting the total sales (by number) for every product and store in the coming month, i.e. November 2015.
 
 We are asked to predict the sales, i.e. time series, of O(10^5) items in different shops. Given the large number of the time series and possible interactions between them, it would be computationally costly to fit time-series models on them. Therefore, we employ tree-based algorithms and deep neural networks, but perform feature engineering in a time-conscious manner. This includes the engineering and use of lag features, as well as performing train-validation split in a time-ordered way.
 
@@ -30,7 +30,7 @@ We then train three tree-based models: XGBClassifier, RandomForestClassifier and
 
 **3. New York City Taxi Fare Prediction**
 
-A Kaggle competition about predicting taxi fares in New York City. We are given a large training dataset of ~55M instances, with pickup and dropoff datetime and locations, and passenger count as features.
+We are given a large training dataset of ~55M instances, with pickup and dropoff datetime and locations, and passenger count as features.
 
 The large size of the dataset requires an efficient memory management and optimised workflow. To this end, we process the datetime features to extract year, month, etc. and save into new files. We also downcast datatypes where appropriate. 
 
@@ -42,7 +42,7 @@ We also performed a baseline model evaluation with minimal pre-processing on Goo
 
 **4. IMDB Movie Review Sentiment Classification**
 
-A Kaggle competition about classifying the sentiment of IMDB movie reviews into good or bad. 
+Classifying the sentiment of IMDB movie reviews into good or bad. 
 
 We first perform text cleanup and pre-processing. We make use of various techniques in natural language processing: CountVectorizer and TfidfVectorizer from nltk, LSTM with GloVe embedding vectors, and a transformer network from Hugging Face, and compare the results and performance of different approaches. 
 
