@@ -5,7 +5,7 @@ Created on Wed Sep 08 19:00:00 2021
 @author: Cedric Yu
 """
 
-#%%
+# %%
 """
 #####################################
 
@@ -49,7 +49,7 @@ File descriptions
 
 """
 
-#%% Workflow
+# %% Workflow
 
 """
 Workflow
@@ -97,51 +97,68 @@ Workflow
 
 """
 
-#%% Preamble
+# %% Preamble
 
-import pandas as pd
 # Make the output look better
+import lightgbm as lgb
+from pickle import load
+from sklearn.ensemble import RandomForestRegressor
+from xgboost import XGBRegressor
+from sklearn.metrics import mean_squared_error
+from pickle import dump
+import category_encoders as ce
+from sklearn.preprocessing import OneHotEncoder
+from sklearn.neighbors import KDTree
+from simpledbf import Dbf5
+from sklearn.model_selection import train_test_split
+import os
+import gc
+import seaborn as sns
+import matplotlib.pyplot as plt
+import pandas as pd
+import numpy as np
 pd.set_option('display.max_rows', 500)
 pd.set_option('display.max_columns', 500)
 # pd.set_option('display.width', 1000)
-pd.options.mode.chained_assignment = None  # default='warn' # ignores warning about dropping columns inplace
-import numpy as np
-import matplotlib.pyplot as plt
-import seaborn as sns
-import gc
+# default='warn' # ignores warning about dropping columns inplace
+pd.options.mode.chained_assignment = None
 
 # import dask
 # import dask.dataframe as dd
 
 
-import os
 os.chdir(r'C:\Users\Cedric Yu\Desktop\Works\7_new-york-city-taxi-fare-prediction')
 
 
-#%% load dataset train.csv
+# %% load dataset train.csv
 # !!!
 """
 use partly pre-processed training set containing year, month, weekday, day, hour extracted from parsed datetime
 """
 
 # get training set column names
-train_cols_new = pd.read_csv('engineered_datasets/train_df_datetime.csv', nrows=0).columns
+train_cols_new = pd.read_csv(
+    'engineered_datasets/train_df_datetime.csv', nrows=0).columns
 train_cols_new = train_cols_new.drop('Unnamed: 0').to_list()
 
 # downcast datatypes to save RAM
-dtypes_new = dict(zip(train_cols_new, [str, 'float32', 'float32', 'float32', 'float32', 'float32', 'uint8', 'uint16', 'uint8', 'uint8', 'uint8', 'uint8', bool]))
+dtypes_new = dict(zip(train_cols_new, [str, 'float32', 'float32', 'float32', 'float32',
+                  'float32', 'uint8', 'uint16', 'uint8', 'uint8', 'uint8', 'uint8', bool]))
 
 # import datetime-processed training dataset
-train_df_raw = pd.read_csv('engineered_datasets/train_df_datetime.csv', low_memory = True, usecols = train_cols_new, dtype = dtypes_new)
+train_df_raw = pd.read_csv('engineered_datasets/train_df_datetime.csv',
+                           low_memory=True, usecols=train_cols_new, dtype=dtypes_new)
 
 train_df = train_df_raw.copy()
 
-#%% diacard outliers before train-validation split
+# %% diacard outliers before train-validation split
 
 # we set bound of fare amount to be between 2.5 and 800
-train_df = train_df[(train_df['fare_amount'] < 800) & (train_df['fare_amount'] > 2.49)]
+train_df = train_df[(train_df['fare_amount'] < 800) &
+                    (train_df['fare_amount'] > 2.49)]
 # only keep passenger 1-6
-train_df = train_df[(train_df['passenger_count'] > 0) & (train_df['passenger_count'] < 7)]
+train_df = train_df[(train_df['passenger_count'] > 0) &
+                    (train_df['passenger_count'] < 7)]
 # drop data from year 2008
 train_df = train_df[train_df['year'] != 2008]
 
@@ -152,38 +169,38 @@ long_max = -73.33
 long_min = -75.00
 # only consider locations within NYC
 train_df = train_df[
-    (train_df['pickup_latitude'] > lat_min) 
-    & (train_df['pickup_latitude'] < lat_max) 
-    & (train_df['pickup_longitude'] > long_min) 
-    & (train_df['pickup_longitude'] < long_max) 
-    & (train_df['dropoff_latitude'] > lat_min) 
-    & (train_df['dropoff_latitude'] < lat_max) 
-    & (train_df['dropoff_longitude'] > long_min) 
+    (train_df['pickup_latitude'] > lat_min)
+    & (train_df['pickup_latitude'] < lat_max)
+    & (train_df['pickup_longitude'] > long_min)
+    & (train_df['pickup_longitude'] < long_max)
+    & (train_df['dropoff_latitude'] > lat_min)
+    & (train_df['dropoff_latitude'] < lat_max)
+    & (train_df['dropoff_longitude'] > long_min)
     & (train_df['dropoff_longitude'] < long_max)]
 
 
-#%% separate features and labels
+# %% separate features and labels
 
-train_df.reset_index(inplace = True)
-X_train_valid = train_df.drop(['fare_amount'], axis = 1)
-X_train_valid.drop(['index', 'key'], axis = 1, inplace = True)
+train_df.reset_index(inplace=True)
+X_train_valid = train_df.drop(['fare_amount'], axis=1)
+X_train_valid.drop(['index', 'key'], axis=1, inplace=True)
 y_train_valid = train_df['fare_amount']
 """# before you proceed: make sure the X and y have the same indices!!"""
 
 del train_df, train_df_raw
 
-#%% train-validation split
+# %% train-validation split
 
-from sklearn.model_selection import train_test_split
 
-X_train, X_valid, y_train, y_valid = train_test_split(X_train_valid, y_train_valid, random_state = 1, train_size = 0.995)
+X_train, X_valid, y_train, y_valid = train_test_split(
+    X_train_valid, y_train_valid, random_state=1, train_size=0.995)
 
 del X_train_valid, y_train_valid
 
 
-#%% pre-processing
+# %% pre-processing
 
-#%% get month, weekday and day
+# %% get month, weekday and day
 
 """datetime """
 
@@ -211,19 +228,23 @@ del X_train_valid, y_train_valid
 # X_valid['hour'] = X_valid['pickup_datetime'].apply(get_hour).astype(object)
 
 
-#%% euclidean distances and bearing
+# %% euclidean distances and bearing
 
 """# returns long_displacement, lat_displacement and euclidean_distance_miles"""
 
+
 def euclidean_distance_miles(X):
-    
+
     X_ = X.copy()
     R_earth = 1.  # radius of the earth in miles = 3959. feature will be rescaled, so set it to 1
-    
-    X_['long_displacement'] = (R_earth * ((X_['dropoff_longitude'] - X_['pickup_longitude']) * np.pi / 180) * np.cos( 0.5*(X_['dropoff_latitude'] + X_['pickup_latitude']) * np.pi / 180 )).astype('float32')
-    X_['lat_displacement'] = (R_earth * (X_['dropoff_latitude'] - X_['pickup_latitude']) * np.pi / 180).astype('float32')
-    X_['euclidean_distance_miles'] = (np.sqrt( X_['long_displacement'] * X_['long_displacement'] + X_['lat_displacement'] * X_['lat_displacement'] )).astype('float32')
-    
+
+    X_['long_displacement'] = (R_earth * ((X_['dropoff_longitude'] - X_['pickup_longitude']) * np.pi / 180)
+                               * np.cos(0.5*(X_['dropoff_latitude'] + X_['pickup_latitude']) * np.pi / 180)).astype('float32')
+    X_['lat_displacement'] = (R_earth * (X_['dropoff_latitude'] -
+                              X_['pickup_latitude']) * np.pi / 180).astype('float32')
+    X_['euclidean_distance_miles'] = (np.sqrt(X_['long_displacement'] * X_['long_displacement'] + X_[
+                                      'lat_displacement'] * X_['lat_displacement'])).astype('float32')
+
     return X_
 
 
@@ -233,17 +254,19 @@ X_valid = euclidean_distance_miles(X_valid)
 
 """# direction of travel"""
 
-X_train['direction'] = np.arctan2(X_train['lat_displacement'], X_train['long_displacement']).astype('float32')
+X_train['direction'] = np.arctan2(
+    X_train['lat_displacement'], X_train['long_displacement']).astype('float32')
 X_train['sin_direction'] = np.sin(X_train['direction']).astype('float32')
 X_train['cos_direction'] = np.cos(X_train['direction']).astype('float32')
-X_train.drop(['direction'], axis = 1, inplace = True)
+X_train.drop(['direction'], axis=1, inplace=True)
 
-X_valid['direction'] = np.arctan2(X_valid['lat_displacement'], X_valid['long_displacement']).astype('float32')
+X_valid['direction'] = np.arctan2(
+    X_valid['lat_displacement'], X_valid['long_displacement']).astype('float32')
 X_valid['sin_direction'] = np.sin(X_valid['direction']).astype('float32')
 X_valid['cos_direction'] = np.cos(X_valid['direction']).astype('float32')
-X_valid.drop(['direction'], axis = 1, inplace = True)
+X_valid.drop(['direction'], axis=1, inplace=True)
 
-#%% driving distance in meters
+# %% driving distance in meters
 
 """driving distance in meters"""
 
@@ -268,7 +291,7 @@ X_valid.drop(['direction'], axis = 1, inplace = True)
 #     except nx.exception.NetworkXNoPath: # in case path is not found
 #         row['driving_distance'] = np.nan
 #         pass
-        
+
 #     return row
 
 # X_train = X_train.apply(driving_distance, axis = 1)
@@ -282,8 +305,7 @@ X_valid.drop(['direction'], axis = 1, inplace = True)
 # X_train['driving_distance'].fillna(X_train['euclidean_distance_miles'] * np.nanmean(X_train['driving_distance'])/ X_train['euclidean_distance_miles'].mean(), inplace = True)
 
 
-
-#%% zip codes and boroughs
+# %% zip codes and boroughs
 
 """
 zip codes and boroughs
@@ -293,46 +315,57 @@ zip codes and boroughs
 
 # database: US Census Gazatte at https://www.codementor.io/@bobhaffner/reverse-geocoding-bljjp5byw
 
-gaz_zip = pd.read_csv('us_census_gazateer/2021_Gaz_zcta_national.txt', delimiter = '\t', dtype = {'GEOID' : 'str'})
+gaz_zip = pd.read_csv('us_census_gazateer/2021_Gaz_zcta_national.txt',
+                      delimiter='\t', dtype={'GEOID': 'str'})
 gaz_zip.columns = gaz_zip.columns.str.strip()
 gaz_zip = gaz_zip[['GEOID', 'INTPTLAT', 'INTPTLONG']]
 
-from simpledbf import Dbf5
 dbf = Dbf5('nyc_opendata/ZIP_CODE_040114.dbf')
 nyc_zip_county = dbf.to_dataframe()
 nyc_zip_county.columns = nyc_zip_county.columns.str.strip()
 nyc_zip_county = nyc_zip_county[['ZIPCODE', 'COUNTY']]
 
-gaz_zip_county = pd.merge(left = gaz_zip, right = nyc_zip_county, left_on = 'GEOID', right_on = 'ZIPCODE', how = 'left')
+gaz_zip_county = pd.merge(left=gaz_zip, right=nyc_zip_county,
+                          left_on='GEOID', right_on='ZIPCODE', how='left')
 
-from sklearn.neighbors import KDTree
 kdt = KDTree(gaz_zip[['INTPTLAT', 'INTPTLONG']])
 
 
-
-X_train['pickup_zipcode'] = gaz_zip_county.loc[kdt.query(X_train[['pickup_latitude', 'pickup_longitude']].to_numpy(), k=1, return_distance=False).squeeze(), 'GEOID'].values
-X_train['pickup_county'] = gaz_zip_county.loc[kdt.query(X_train[['pickup_latitude', 'pickup_longitude']].to_numpy(), k=1, return_distance=False).squeeze(), 'COUNTY'].values
-X_train['dropoff_zipcode'] = gaz_zip_county.loc[kdt.query(X_train[['dropoff_latitude', 'dropoff_longitude']].to_numpy(), k=1, return_distance=False).squeeze(), 'GEOID'].values
-X_train['dropoff_county'] = gaz_zip_county.loc[kdt.query(X_train[['dropoff_latitude', 'dropoff_longitude']].to_numpy(), k=1, return_distance=False).squeeze(), 'COUNTY'].values
-X_train[['pickup_county', 'dropoff_county']] = X_train[['pickup_county', 'dropoff_county']].fillna('not_in_NYC')
-X_train['dropoff_pickup_same_county'] = (X_train['dropoff_county'] == X_train['pickup_county'])
-
-
-
-X_valid['pickup_zipcode'] = gaz_zip_county.loc[kdt.query(X_valid[['pickup_latitude', 'pickup_longitude']].to_numpy(), k=1, return_distance=False).squeeze(), 'GEOID'].values
-X_valid['pickup_county'] = gaz_zip_county.loc[kdt.query(X_valid[['pickup_latitude', 'pickup_longitude']].to_numpy(), k=1, return_distance=False).squeeze(), 'COUNTY'].values
-X_valid['dropoff_zipcode'] = gaz_zip_county.loc[kdt.query(X_valid[['dropoff_latitude', 'dropoff_longitude']].to_numpy(), k=1, return_distance=False).squeeze(), 'GEOID'].values
-X_valid['dropoff_county'] = gaz_zip_county.loc[kdt.query(X_valid[['dropoff_latitude', 'dropoff_longitude']].to_numpy(), k=1, return_distance=False).squeeze(), 'COUNTY'].values
-X_valid[['pickup_county', 'dropoff_county']] = X_valid[['pickup_county', 'dropoff_county']].fillna('not_in_NYC')
-X_valid['dropoff_pickup_same_county'] = (X_valid['dropoff_county'] == X_valid['pickup_county'])
+X_train['pickup_zipcode'] = gaz_zip_county.loc[kdt.query(
+    X_train[['pickup_latitude', 'pickup_longitude']].to_numpy(), k=1, return_distance=False).squeeze(), 'GEOID'].values
+X_train['pickup_county'] = gaz_zip_county.loc[kdt.query(
+    X_train[['pickup_latitude', 'pickup_longitude']].to_numpy(), k=1, return_distance=False).squeeze(), 'COUNTY'].values
+X_train['dropoff_zipcode'] = gaz_zip_county.loc[kdt.query(
+    X_train[['dropoff_latitude', 'dropoff_longitude']].to_numpy(), k=1, return_distance=False).squeeze(), 'GEOID'].values
+X_train['dropoff_county'] = gaz_zip_county.loc[kdt.query(
+    X_train[['dropoff_latitude', 'dropoff_longitude']].to_numpy(), k=1, return_distance=False).squeeze(), 'COUNTY'].values
+X_train[['pickup_county', 'dropoff_county']] = X_train[[
+    'pickup_county', 'dropoff_county']].fillna('not_in_NYC')
+X_train['dropoff_pickup_same_county'] = (
+    X_train['dropoff_county'] == X_train['pickup_county'])
 
 
-#%% airport
+X_valid['pickup_zipcode'] = gaz_zip_county.loc[kdt.query(
+    X_valid[['pickup_latitude', 'pickup_longitude']].to_numpy(), k=1, return_distance=False).squeeze(), 'GEOID'].values
+X_valid['pickup_county'] = gaz_zip_county.loc[kdt.query(
+    X_valid[['pickup_latitude', 'pickup_longitude']].to_numpy(), k=1, return_distance=False).squeeze(), 'COUNTY'].values
+X_valid['dropoff_zipcode'] = gaz_zip_county.loc[kdt.query(
+    X_valid[['dropoff_latitude', 'dropoff_longitude']].to_numpy(), k=1, return_distance=False).squeeze(), 'GEOID'].values
+X_valid['dropoff_county'] = gaz_zip_county.loc[kdt.query(
+    X_valid[['dropoff_latitude', 'dropoff_longitude']].to_numpy(), k=1, return_distance=False).squeeze(), 'COUNTY'].values
+X_valid[['pickup_county', 'dropoff_county']] = X_valid[[
+    'pickup_county', 'dropoff_county']].fillna('not_in_NYC')
+X_valid['dropoff_pickup_same_county'] = (
+    X_valid['dropoff_county'] == X_valid['pickup_county'])
+
+
+# %% airport
 
 # '11430', 07114, 11371
 """# fizzy match of zipcodes; we used KDTree to get the zipcode, which was not exact"""
 
-airport_zipcode = ['11371', '11430', '11414', '11420', '11436', '11434', '11413', '11422', '11581', '11096', '11369', '11370', '11372', '11105', '07114', '07201', '07105', '07208', '07112', '07108', '07102']
+airport_zipcode = ['11371', '11430', '11414', '11420', '11436', '11434', '11413', '11422', '11581', '11096',
+                   '11369', '11370', '11372', '11105', '07114', '07201', '07105', '07208', '07112', '07108', '07102']
 
 
 X_train['pickup_airport'] = X_train['pickup_zipcode'].isin(airport_zipcode)
@@ -346,44 +379,50 @@ gc.collect()
 # X_train.to_csv('engineered_datasets/X_train.csv')
 # X_valid.to_csv('engineered_datasets/X_valid.csv')
 
-#%% one-hot encoding
+# %% one-hot encoding
 
 # !!!
 """ one-hot encoding"""
 
 onehot_cols1 = ['passenger_count', 'pickup_county', 'dropoff_county']
 
-from sklearn.preprocessing import OneHotEncoder
 
 # up to certain version, OneHotEncoder could not process string values directly. If your nominal features are strings, then you need to first map them into integers.
-OH_encoder1 = OneHotEncoder(handle_unknown='ignore', sparse=False, dtype = 'float32')# sparse=False # will return sparse matrix if set True else will return an array
+# sparse=False # will return sparse matrix if set True else will return an array
+OH_encoder1 = OneHotEncoder(handle_unknown='ignore',
+                            sparse=False, dtype='float32')
 """ output datatype = 'float32' to save memory"""
 
-def one_hot_fit_transform(X) : 
-    
+
+def one_hot_fit_transform(X):
+
     # transform df using one-hot encoding
     X_object = X[onehot_cols1]
     OH_encoder1.fit(X_object)
-    OH_cols = pd.DataFrame(OH_encoder1.transform(X_object), columns = OH_encoder1.get_feature_names(onehot_cols1)) 
+    OH_cols = pd.DataFrame(OH_encoder1.transform(
+        X_object), columns=OH_encoder1.get_feature_names(onehot_cols1))
     OH_cols.index = X.index
     # drop/keep the pre-encoded columns in case we want to encode them in another way later
     num_X = X.drop(onehot_cols1, axis=1)
     OH_X = pd.concat([num_X, OH_cols], axis=1)
     # OH_X = pd.concat([X, OH_cols], axis=1)
-    
+
     return OH_X
 
 # OH_encoder.transform dataframe
-def one_hot_transform(X) : 
-    
+
+
+def one_hot_transform(X):
+
     # transform df using one-hot encoding
     X_object = X[onehot_cols1]
-    OH_cols = pd.DataFrame(OH_encoder1.transform(X_object), columns = OH_encoder1.get_feature_names(onehot_cols1)) 
+    OH_cols = pd.DataFrame(OH_encoder1.transform(
+        X_object), columns=OH_encoder1.get_feature_names(onehot_cols1))
     OH_cols.index = X.index
     num_X = X.drop(onehot_cols1, axis=1)
     OH_X = pd.concat([num_X, OH_cols], axis=1)
     # OH_X = pd.concat([X, OH_cols], axis=1)
-    
+
     return OH_X
 
 
@@ -394,9 +433,8 @@ del X_train, X_valid
 
 gc.collect()
 
-#%% frequency-encoding
+# %% frequency-encoding
 
-import category_encoders as ce
 
 freq_cols2 = ['weekday']
 
@@ -408,52 +446,59 @@ X_valid_encoded1[freq_cols2] = X_valid_encoded1[freq_cols2].astype(object)
 freq_encoder2 = ce.count.CountEncoder()
 freq_encoder2.fit(X_train_encoded1[freq_cols2])
 
-X_train_encoded2 = pd.concat([X_train_encoded1, freq_encoder2.transform(X_train_encoded1[freq_cols2]).rename(columns = dict(zip(freq_cols2, [col + '_freq_encoded' for col in freq_cols2])))], axis = 1).drop(freq_cols2, axis = 1)
+X_train_encoded2 = pd.concat([X_train_encoded1, freq_encoder2.transform(X_train_encoded1[freq_cols2]).rename(
+    columns=dict(zip(freq_cols2, [col + '_freq_encoded' for col in freq_cols2])))], axis=1).drop(freq_cols2, axis=1)
 # downcast to int32 to save ram
-X_train_encoded2[[col + '_freq_encoded' for col in freq_cols2]] = X_train_encoded2[[col + '_freq_encoded' for col in freq_cols2]].astype('int32')
+X_train_encoded2[[col + '_freq_encoded' for col in freq_cols2]
+                 ] = X_train_encoded2[[col + '_freq_encoded' for col in freq_cols2]].astype('int32')
 
 
-X_valid_encoded2 = pd.concat([X_valid_encoded1, freq_encoder2.transform(X_valid_encoded1[freq_cols2]).rename(columns = dict(zip(freq_cols2, [col + '_freq_encoded' for col in freq_cols2])))], axis = 1).drop(freq_cols2, axis = 1)
-X_valid_encoded2[[col + '_freq_encoded' for col in freq_cols2]] = X_valid_encoded2[[col + '_freq_encoded' for col in freq_cols2]].astype('int32')
+X_valid_encoded2 = pd.concat([X_valid_encoded1, freq_encoder2.transform(X_valid_encoded1[freq_cols2]).rename(
+    columns=dict(zip(freq_cols2, [col + '_freq_encoded' for col in freq_cols2])))], axis=1).drop(freq_cols2, axis=1)
+X_valid_encoded2[[col + '_freq_encoded' for col in freq_cols2]
+                 ] = X_valid_encoded2[[col + '_freq_encoded' for col in freq_cols2]].astype('int32')
 
 # X_train_encoded2 = X_train_encoded1
 # X_valid_encoded2 = X_valid_encoded1
 
 del X_train_encoded1, X_valid_encoded1
 
-#%% target mean encoding, subtracting global mean of the training set
+# %% target mean encoding, subtracting global mean of the training set
 
-target_mean_cols3 = ['year', 'month', 'day', 'hour', 'pickup_zipcode', 'dropoff_zipcode']
+target_mean_cols3 = ['year', 'month', 'day',
+                     'hour', 'pickup_zipcode', 'dropoff_zipcode']
 
 # these columns have been converted to object type for TargetEncoder
 target_mean_encoder3 = ce.target_encoder.TargetEncoder()
 
 target_mean_encoder3.fit(X_train_encoded2[target_mean_cols3], y_train)
 
-X_train_encoded3 = pd.concat([X_train_encoded2, target_mean_encoder3.transform(X_train_encoded2[target_mean_cols3]).rename(columns = dict(zip(target_mean_cols3, [col + '_mean_encoded' for col in target_mean_cols3])))], axis = 1).drop(target_mean_cols3, axis = 1)
+X_train_encoded3 = pd.concat([X_train_encoded2, target_mean_encoder3.transform(X_train_encoded2[target_mean_cols3]).rename(
+    columns=dict(zip(target_mean_cols3, [col + '_mean_encoded' for col in target_mean_cols3])))], axis=1).drop(target_mean_cols3, axis=1)
 
 
-X_valid_encoded3 = pd.concat([X_valid_encoded2, target_mean_encoder3.transform(X_valid_encoded2[target_mean_cols3]).rename(columns = dict(zip(target_mean_cols3, [col + '_mean_encoded' for col in target_mean_cols3])))], axis = 1).drop(target_mean_cols3, axis = 1)
+X_valid_encoded3 = pd.concat([X_valid_encoded2, target_mean_encoder3.transform(X_valid_encoded2[target_mean_cols3]).rename(
+    columns=dict(zip(target_mean_cols3, [col + '_mean_encoded' for col in target_mean_cols3])))], axis=1).drop(target_mean_cols3, axis=1)
 
 del X_train_encoded2, X_valid_encoded2
 
-#%% drop and re-order columns
+# %% drop and re-order columns
 # 'driving_distance',
 cols_to_keep4 = ['pickup_longitude', 'pickup_latitude', 'dropoff_longitude',
-       'dropoff_latitude', 'daylight_saving', 'long_displacement',
-       'lat_displacement', 'euclidean_distance_miles', 
-       'sin_direction', 'cos_direction', 'dropoff_pickup_same_county',
-       'pickup_airport', 'dropoff_airport', 'passenger_count_1',
-       'passenger_count_2', 'passenger_count_3', 'passenger_count_4',
-       'passenger_count_5', 'passenger_count_6', 'pickup_county_Bronx',
-       'pickup_county_Kings', 'pickup_county_New York', 'pickup_county_Queens',
-       'pickup_county_Richmond', 'pickup_county_not_in_NYC',
-       'dropoff_county_Bronx', 'dropoff_county_Kings',
-       'dropoff_county_New York', 'dropoff_county_Queens',
-       'dropoff_county_Richmond', 'dropoff_county_not_in_NYC',
-       'weekday_freq_encoded', 'year_mean_encoded', 'month_mean_encoded',
-       'day_mean_encoded', 'hour_mean_encoded', 'pickup_zipcode_mean_encoded',
-       'dropoff_zipcode_mean_encoded']
+                 'dropoff_latitude', 'daylight_saving', 'long_displacement',
+                 'lat_displacement', 'euclidean_distance_miles',
+                 'sin_direction', 'cos_direction', 'dropoff_pickup_same_county',
+                 'pickup_airport', 'dropoff_airport', 'passenger_count_1',
+                 'passenger_count_2', 'passenger_count_3', 'passenger_count_4',
+                 'passenger_count_5', 'passenger_count_6', 'pickup_county_Bronx',
+                 'pickup_county_Kings', 'pickup_county_New York', 'pickup_county_Queens',
+                 'pickup_county_Richmond', 'pickup_county_not_in_NYC',
+                 'dropoff_county_Bronx', 'dropoff_county_Kings',
+                 'dropoff_county_New York', 'dropoff_county_Queens',
+                 'dropoff_county_Richmond', 'dropoff_county_not_in_NYC',
+                 'weekday_freq_encoded', 'year_mean_encoded', 'month_mean_encoded',
+                 'day_mean_encoded', 'hour_mean_encoded', 'pickup_zipcode_mean_encoded',
+                 'dropoff_zipcode_mean_encoded']
 
 
 X_train_encoded4 = X_train_encoded3[cols_to_keep4]
@@ -465,31 +510,31 @@ del X_train_encoded3, X_valid_encoded3
 
 gc.collect()
 
-#%% change datatype
+# %% change datatype
 
 X_train_encoded4[['passenger_count_1', 'passenger_count_2',
-       'passenger_count_3', 'passenger_count_4', 'passenger_count_5',
-       'passenger_count_6', 'pickup_county_Bronx', 'pickup_county_Kings',
-       'pickup_county_New York', 'pickup_county_Queens',
-       'pickup_county_Richmond', 'pickup_county_not_in_NYC',
-       'dropoff_county_Bronx', 'dropoff_county_Kings',
-       'dropoff_county_New York', 'dropoff_county_Queens',
-       'dropoff_county_Richmond', 'dropoff_county_not_in_NYC']] = X_train_encoded4[['passenger_count_1', 'passenger_count_2',
-       'passenger_count_3', 'passenger_count_4', 'passenger_count_5',
-       'passenger_count_6', 'pickup_county_Bronx', 'pickup_county_Kings',
-       'pickup_county_New York', 'pickup_county_Queens',
-       'pickup_county_Richmond', 'pickup_county_not_in_NYC',
-       'dropoff_county_Bronx', 'dropoff_county_Kings',
-       'dropoff_county_New York', 'dropoff_county_Queens',
-       'dropoff_county_Richmond', 'dropoff_county_not_in_NYC']].astype('uint8')
+                  'passenger_count_3', 'passenger_count_4', 'passenger_count_5',
+                  'passenger_count_6', 'pickup_county_Bronx', 'pickup_county_Kings',
+                  'pickup_county_New York', 'pickup_county_Queens',
+                  'pickup_county_Richmond', 'pickup_county_not_in_NYC',
+                  'dropoff_county_Bronx', 'dropoff_county_Kings',
+                  'dropoff_county_New York', 'dropoff_county_Queens',
+                  'dropoff_county_Richmond', 'dropoff_county_not_in_NYC']] = X_train_encoded4[['passenger_count_1', 'passenger_count_2',
+                                                                                               'passenger_count_3', 'passenger_count_4', 'passenger_count_5',
+                                                                                               'passenger_count_6', 'pickup_county_Bronx', 'pickup_county_Kings',
+                                                                                               'pickup_county_New York', 'pickup_county_Queens',
+                                                                                               'pickup_county_Richmond', 'pickup_county_not_in_NYC',
+                                                                                               'dropoff_county_Bronx', 'dropoff_county_Kings',
+                                                                                               'dropoff_county_New York', 'dropoff_county_Queens',
+                                                                                               'dropoff_county_Richmond', 'dropoff_county_not_in_NYC']].astype('uint8')
 
 
-#%% fillna with mean
+# %% fillna with mean
 
 # X_train_encoded4 = X_train_encoded4.fillna(X_train_encoded4.mean())
 # X_valid_encoded4 = X_valid_encoded4.fillna(X_valid_encoded4.mean())
 
-#%% scale columns
+# %% scale columns
 
 """# minmax scaler; not used since 1) we use tree-based algorithms, 2) not enough ram"""
 
@@ -504,21 +549,19 @@ X_train_encoded4[['passenger_count_1', 'passenger_count_2',
 
 # del X_train_encoded4, X_valid_encoded4
 
-#%% transform label to log
+# %% transform label to log
 
 # """# use log(y + 1) as label because we use rmsle; using the original label may lead to negative predicted values; error would be nan"""
 # y_train_log = np.log(y_train + 1)
 # y_valid_log = np.log(y_valid + 1)
 
 
-#%% save engineered datasets and encoders/scalers
+# %% save engineered datasets and encoders/scalers
 
 X_train_encoded4.to_csv('engineered_datasets/X_train_encoded4.csv')
 X_valid_encoded4.to_csv('engineered_datasets/X_valid_encoded4.csv')
 y_train.to_csv('engineered_datasets/y_train.csv')
 y_valid.to_csv('engineered_datasets/y_valid.csv')
-
-from pickle import dump
 
 
 dump(OH_encoder1, open('encoders/OH_encoder1.pkl', 'wb'))
@@ -527,37 +570,43 @@ dump(target_mean_encoder3, open('encoders/target_mean_encoder3.pkl', 'wb'))
 # dump(scaler5, open('encoders/2021-09-06_5/scaler5.pkl', 'wb'))
 
 
-#%% load engineered datasets for model training
+# %% load engineered datasets for model training
 # !!!
 
-train_cols = pd.read_csv('engineered_datasets/X_train_encoded4.csv', nrows=0).columns.drop(['Unnamed: 0']).tolist()
+train_cols = pd.read_csv('engineered_datasets/X_train_encoded4.csv',
+                         nrows=0).columns.drop(['Unnamed: 0']).tolist()
 
 # downcast datatypes to save RAM
-dtypes_new = dict(zip(train_cols, ['float32', 'float32', 'float32', 'float32', bool, 'float32', 'float32', 'float32', 'float32', 'float32', bool, bool, bool, bool, bool, bool, bool, bool, bool, bool, bool, bool, bool, bool, bool, bool, bool, bool, bool, bool, bool, 'float32', 'float32', 'float32', 'float32', 'float32', 'float32', 'float32']))
+dtypes_new = dict(zip(train_cols, ['float32', 'float32', 'float32', 'float32', bool, 'float32', 'float32', 'float32', 'float32', 'float32', bool, bool, bool, bool, bool, bool,
+                  bool, bool, bool, bool, bool, bool, bool, bool, bool, bool, bool, bool, bool, bool, bool, 'float32', 'float32', 'float32', 'float32', 'float32', 'float32', 'float32']))
 
 # X_train_encoded4 = dd.read_csv('engineered_datasets/X_train_encoded4.csv', usecols = train_cols, dtype = dtypes_new)
 # X_valid_encoded4 = dd.read_csv('engineered_datasets/X_valid_encoded4.csv', usecols = train_cols, dtype = dtypes_new)
 
 """ only load the first 20M rows of training set due to insufficient memory"""
-X_train_encoded4 = pd.read_csv('engineered_datasets/X_train_encoded4.csv', index_col = [0], dtype = dtypes_new, nrows = 20000000)
-X_valid_encoded4 = pd.read_csv('engineered_datasets/X_valid_encoded4.csv', index_col = [0], dtype = dtypes_new)
+X_train_encoded4 = pd.read_csv(
+    'engineered_datasets/X_train_encoded4.csv', index_col=[0], dtype=dtypes_new, nrows=20000000)
+X_valid_encoded4 = pd.read_csv(
+    'engineered_datasets/X_valid_encoded4.csv', index_col=[0], dtype=dtypes_new)
 
 # X_train_encoded4_scaled = pd.read_csv('engineered_datasets/2021-09-06_5/X_train_encoded4_scaled.csv', index_col = [0])
 # X_valid_encoded4_scaled = pd.read_csv('engineered_datasets/2021-09-06_5/X_valid_encoded4_scaled.csv', index_col = [0])
 
-y_cols = pd.read_csv('engineered_datasets/y_train.csv', nrows=0).columns.drop(['Unnamed: 0']).tolist()
+y_cols = pd.read_csv('engineered_datasets/y_train.csv',
+                     nrows=0).columns.drop(['Unnamed: 0']).tolist()
 
 # y_train = dd.read_csv('engineered_datasets/y_train.csv', usecols = y_cols).squeeze()
 # y_valid = dd.read_csv('engineered_datasets/y_valid.csv', usecols = y_cols).squeeze()
 
-y_train = pd.read_csv('engineered_datasets/y_train.csv', index_col = [0], nrows = 20000000).squeeze()
-y_valid = pd.read_csv('engineered_datasets/y_valid.csv', index_col = [0]).squeeze()
+y_train = pd.read_csv('engineered_datasets/y_train.csv',
+                      index_col=[0], nrows=20000000).squeeze()
+y_valid = pd.read_csv('engineered_datasets/y_valid.csv',
+                      index_col=[0]).squeeze()
 
 gc.collect()
 
-#%% model scores
+# %% model scores
 
-from sklearn.metrics import mean_squared_error
 
 """# DummyRegressor """
 # from sklearn.dummy import DummyRegressor
@@ -664,7 +713,7 @@ from sklearn.metrics import mean_squared_error
 # linridge_mse_poly = GridSearchCV(linridge_poly, param_grid = grid_values_ridge_poly, scoring = 'neg_mean_squared_log_error')
 # linridge_mse_poly.fit(encoded_X_train_scaled_poly, y_train)
 # print('Grid best parameter (min. mean_squared_log_error): ', linridge_mse_poly.best_params_)
-# # 
+# #
 
 # print('Ridge Polynomial (p = 3) Regression with alpha = {}: training set R2 score is {:.3f}'.format(linridge_mse_poly.best_params_['alpha'], linridge_mse_poly.score(encoded_X_train_scaled_poly, y_train)))
 # print('Ridge Polynomial (p = 3) Regression with alpha = {}: validation set R2 score is {:.3f}'.format(linridge_mse_poly.best_params_['alpha'], linridge_mse_poly.score(encoded_X_valid_scaled_poly, y_valid)))
@@ -699,7 +748,7 @@ from sklearn.metrics import mean_squared_error
 # dump(knnreg, open('knnreg5.pkl', 'wb'))
 
 
-# this will take forever... 
+# this will take forever...
 # knnreg2 = KNeighborsRegressor()
 # grid_values_knn = {'n_neighbors': [3, 5, 7], 'p': [1]}
 
@@ -725,18 +774,16 @@ from sklearn.metrics import mean_squared_error
 
 """# XGBRegressor """
 
-from sklearn.metrics import mean_squared_error
-
-from xgboost import XGBRegressor
 
 # default hyperparameters
-XGBR_model = XGBRegressor(eval_metric = "rmse", 
-                          learning_rate = 0.05, 
-                          max_depth = 8,
-                          n_estimators = 100,
-                          reg_lambda = 0.7,
-                          n_jobs = 6)
-XGBR_model.fit(X_train_encoded4, y_train, eval_set = [(X_train_encoded4, y_train), (X_valid_encoded4, y_valid)])
+XGBR_model = XGBRegressor(eval_metric="rmse",
+                          learning_rate=0.05,
+                          max_depth=8,
+                          n_estimators=100,
+                          reg_lambda=0.7,
+                          n_jobs=6)
+XGBR_model.fit(X_train_encoded4, y_train, eval_set=[
+               (X_train_encoded4, y_train), (X_valid_encoded4, y_valid)])
 
 # XGBR_model = XGBRegressor(eval_metric="rmsle", n_jobs = 8)
 # XGBR_model.fit(X_train_encoded4_scaled, y_train, eval_set = [(X_train_encoded4_scaled, y_train), (X_valid_encoded4_scaled, y_valid)])
@@ -745,7 +792,8 @@ XGBR_model.fit(X_train_encoded4, y_train, eval_set = [(X_train_encoded4, y_train
 # print(mean_squared_error(y_train, XGBR_model.predict(X_train_encoded4_scaled), squared = False))
 # print(mean_squared_error(y_valid, XGBR_model.predict(X_valid_encoded4_scaled), squared = False))
 
-XGBR_feature_importances = pd.Series(XGBR_model.feature_importances_, index = X_train_encoded4.columns).sort_values(ascending = False)
+XGBR_feature_importances = pd.Series(
+    XGBR_model.feature_importances_, index=X_train_encoded4.columns).sort_values(ascending=False)
 # euclidean_distance_miles        0.719793
 # dropoff_county_not_in_NYC       0.049462
 # dropoff_airport                 0.040797
@@ -819,14 +867,13 @@ plt.title('XGBR')
 # X_valid_encoded4 = X_valid_encoded4.repartition(npartitions = 1)
 
 
-
 # dask_XGBR_model = xgb.dask.train(client, params, dtrain)
 
 
 # xgboost.dask.predict(client, dask_XGBR_model0, X_valid_encoded4).compute()
 
-# dask_XGBR_model = dxgb.XGBRegressor(client, eval_metric = "rmse", 
-#                           learning_rate = 0.05, 
+# dask_XGBR_model = dxgb.XGBRegressor(client, eval_metric = "rmse",
+#                           learning_rate = 0.05,
 #                           max_depth = 8,
 #                           n_estimators = 100,
 #                           reg_lambda = 0.7)
@@ -838,15 +885,14 @@ plt.title('XGBR')
 
 # grid_values_XGBR = {'n_estimators': list(np.arange(100, 1100, 100)), 'learning_rate': [0.001, 0.01, 0.1], 'max_depth': [3, 4, 5, 6, 7]}
 
-# fit_params={"early_stopping_rounds": 50, 
-#             "eval_metric" : "rmsle", 
+# fit_params={"early_stopping_rounds": 50,
+#             "eval_metric" : "rmsle",
 #             "eval_set" : [[X_valid_encoded4_scaled, y_valid]]}
 
 # XGBR_model2 = XGBRegressor(eval_metric="rmsle", n_jobs = 8)
 # XGBR_model_rmsle = RandomizedSearchCV(XGBR_model2, param_distributions = grid_values_XGBR, scoring = 'neg_mean_squared_log_error', cv = 5, verbose = 1, n_iter = 4)
 # XGBR_model_rmsle.fit(X_train_encoded4_scaled, y_train, **fit_params)
 # print('Grid best parameter (min. mean_squared_log_error): ', XGBR_model_rmsle.best_params_)
-
 
 
 # np.sqrt(mean_squared_log_error(y_train, XGBR_model_rmsle.predict(X_train_encoded4_scaled)))
@@ -860,12 +906,10 @@ plt.title('XGBR')
 # pd.Series(XGBR_model_rmsle.feature_importances_, index = X_train_encoded4_scaled.columns).sort_values(ascending = False)
 
 
-
 # XGBR_best = XGBRegressor(n_estimators = 950, learning_rate = 0.01, max_depth = 5,  eval_metric="rmsle", n_jobs = 8)
 # XGBR_best.fit(X_train_encoded4_scaled, y_train)
 # np.sqrt(mean_squared_log_error(y_valid, XGBR_best.predict(X_valid_encoded4_scaled)))
 
-from pickle import dump
 # save the model
 dump(XGBR_model, open('XGBR_model.pkl', 'wb'))
 
@@ -886,26 +930,23 @@ dump(XGBR_model, open('XGBR_model.pkl', 'wb'))
 
 """# RandomForestRegressor """
 
-from sklearn.ensemble import RandomForestRegressor
-RFR = RandomForestRegressor(n_estimators = 400, random_state = 0, n_jobs = -1, verbose = 1)
+RFR = RandomForestRegressor(
+    n_estimators=400, random_state=0, n_jobs=-1, verbose=1)
 RFR.fit(X_train_encoded4_scaled, y_train)
 
 
-from sklearn.metrics import mean_squared_error
-print(mean_squared_error(y_train, RFR.predict(X_train_encoded4_scaled), squared = False))
-print(mean_squared_error(y_valid, RFR.predict(X_valid_encoded4_scaled), squared = False))
+print(mean_squared_error(y_train, RFR.predict(
+    X_train_encoded4_scaled), squared=False))
+print(mean_squared_error(y_valid, RFR.predict(
+    X_valid_encoded4_scaled), squared=False))
 
 
-
-pd.Series(RFR.feature_importances_, index = X_train_encoded4_scaled.columns).sort_values(ascending = False).plot.barh()
-
-
+pd.Series(RFR.feature_importances_, index=X_train_encoded4_scaled.columns).sort_values(
+    ascending=False).plot.barh()
 
 
-from pickle import dump
 # save the model
 dump(RFR, open('RFR_model.pkl', 'wb'))
-
 
 
 # from sklearn.model_selection import RandomizedSearchCV
@@ -967,76 +1008,79 @@ dump(RFR, open('RFR_model.pkl', 'wb'))
 # my_pred.to_csv('my_submission_RFR_best.csv')
 
 
-
 #################################
 
 """# lightGBM"""
 
-import lightgbm as lgb
 
-LGBMreg = lgb.LGBMRegressor(boosting_type = 'gbdt', 
-                            learning_rate = 0.02, 
-                            num_leaves = 800,
-                            n_estimators = 500, 
-                            num_iterations = 5000, 
-                            max_bin = 500, 
-                            feature_fraction = 0.7, 
-                            bagging_fraction = 0.7,
-                            lambda_l2 = 0.5,
-                            max_depth = 25,
-                            silent = False
+LGBMreg = lgb.LGBMRegressor(boosting_type='gbdt',
+                            learning_rate=0.02,
+                            num_leaves=800,
+                            n_estimators=500,
+                            num_iterations=5000,
+                            max_bin=500,
+                            feature_fraction=0.7,
+                            bagging_fraction=0.7,
+                            lambda_l2=0.5,
+                            max_depth=25,
+                            silent=False
                             )
 
 LGBMreg.fit(X_train_encoded4, y_train,
-            eval_set=[(X_train_encoded4, y_train), (X_valid_encoded4, y_valid)], 
-            eval_metric = 'rmse',
-            early_stopping_rounds = 50, 
-            verbose = True)
+            eval_set=[(X_train_encoded4, y_train),
+                      (X_valid_encoded4, y_valid)],
+            eval_metric='rmse',
+            early_stopping_rounds=50,
+            verbose=True)
 
 
 # LGBMreg.fit(X_train_encoded4_scaled, y_train,
 #             eval_set=[(X_train_encoded4_scaled, y_train), (X_valid_encoded4_scaled, y_valid)],
-#             # eval_metric = rmsle, 
+#             # eval_metric = rmsle,
 #             eval_metric = 'rmse',
-#             early_stopping_rounds = 100, 
+#             early_stopping_rounds = 100,
 #             verbose = True)
 
 
 # print(mean_squared_error(y_train, LGBMreg.predict(X_train_encoded4_scaled), squared = False))
 # print(mean_squared_error(y_valid, LGBMreg.predict(X_valid_encoded4_scaled), squared = False))
 
-LGBMreg_feature_importances = pd.Series(LGBMreg.feature_importances_, index = X_train_encoded4.columns).sort_values(ascending = False)
-LGBMreg_feature_importances = LGBMreg_feature_importances / LGBMreg_feature_importances.max()
+LGBMreg_feature_importances = pd.Series(
+    LGBMreg.feature_importances_, index=X_train_encoded4.columns).sort_values(ascending=False)
+LGBMreg_feature_importances = LGBMreg_feature_importances / \
+    LGBMreg_feature_importances.max()
 
-fig = plt.figure('feature_importances', figsize = (10, 6), dpi = 200)
-sns.barplot(y = LGBMreg_feature_importances.iloc[:18].index, x = LGBMreg_feature_importances.iloc[:18].values, color = 'skyblue')
+fig = plt.figure('feature_importances', figsize=(10, 6), dpi=200)
+sns.barplot(y=LGBMreg_feature_importances.iloc[:18].index,
+            x=LGBMreg_feature_importances.iloc[:18].values, color='skyblue')
 # LGBMreg_feature_importances.plot.barh()
 ax = plt.gca()
 ax.set_xlabel('Feature importance')
 ax.set_ylabel(None)
-ax.set_yticklabels(ax.get_yticklabels(), fontsize = 'small')
+ax.set_yticklabels(ax.get_yticklabels(), fontsize='small')
 ax.set_title('lightGBM Regressor')
 ax.spines['top'].set_visible(False)
 ax.spines['right'].set_visible(False)
-plt.xlim(0,1)
+plt.xlim(0, 1)
 fig.tight_layout()
 # plt.savefig('plots/lightgbm_feature_importances20M.png', dpi = 200)
 
-from pickle import dump
 # save the model
 dump(LGBMreg, open('LGBMreg.pkl', 'wb'))
 
-#%% test dataset
+# %% test dataset
 
 # !!!
 
-#%% load test dataset
+# %% load test dataset
 # test_df_all = pd.read_csv('datasets/test.csv', parse_dates = [2], date_parser = parser)
 
-test_df_all_cols = pd.read_csv('engineered_datasets/test_df_datetime.csv', nrows=0).columns
+test_df_all_cols = pd.read_csv(
+    'engineered_datasets/test_df_datetime.csv', nrows=0).columns
 test_df_all_cols = test_df_all_cols.drop(['Unnamed: 0']).tolist()
 
-test_df_all = pd.read_csv(r'engineered_datasets\test_df_datetime.csv', usecols = test_df_all_cols)
+test_df_all = pd.read_csv(
+    r'engineered_datasets\test_df_datetime.csv', usecols=test_df_all_cols)
 
 X_test = test_df_all.copy()
 X_test_id = X_test['key']
@@ -1049,32 +1093,40 @@ X_test_id = X_test['key']
 # pre-rocessing
 X_test = euclidean_distance_miles(X_test)
 
-X_test['direction'] = np.arctan2(X_test['lat_displacement'], X_test['long_displacement'])
+X_test['direction'] = np.arctan2(
+    X_test['lat_displacement'], X_test['long_displacement'])
 X_test['sin_direction'] = np.sin(X_test['direction'])
 X_test['cos_direction'] = np.cos(X_test['direction'])
 
-X_test['pickup_zipcode'] = gaz_zip_county.loc[kdt.query(X_test[['pickup_latitude', 'pickup_longitude']].to_numpy(), k=1, return_distance=False).squeeze(), 'GEOID'].values
-X_test['pickup_county'] = gaz_zip_county.loc[kdt.query(X_test[['pickup_latitude', 'pickup_longitude']].to_numpy(), k=1, return_distance=False).squeeze(), 'COUNTY'].values
-X_test['dropoff_zipcode'] = gaz_zip_county.loc[kdt.query(X_test[['dropoff_latitude', 'dropoff_longitude']].to_numpy(), k=1, return_distance=False).squeeze(), 'GEOID'].values
-X_test['dropoff_county'] = gaz_zip_county.loc[kdt.query(X_test[['dropoff_latitude', 'dropoff_longitude']].to_numpy(), k=1, return_distance=False).squeeze(), 'COUNTY'].values
-X_test[['pickup_county', 'dropoff_county']] = X_test[['pickup_county', 'dropoff_county']].fillna('not_in_NYC')
-X_test['dropoff_pickup_same_county'] = (X_test['dropoff_county'] == X_test['pickup_county'])
+X_test['pickup_zipcode'] = gaz_zip_county.loc[kdt.query(
+    X_test[['pickup_latitude', 'pickup_longitude']].to_numpy(), k=1, return_distance=False).squeeze(), 'GEOID'].values
+X_test['pickup_county'] = gaz_zip_county.loc[kdt.query(
+    X_test[['pickup_latitude', 'pickup_longitude']].to_numpy(), k=1, return_distance=False).squeeze(), 'COUNTY'].values
+X_test['dropoff_zipcode'] = gaz_zip_county.loc[kdt.query(
+    X_test[['dropoff_latitude', 'dropoff_longitude']].to_numpy(), k=1, return_distance=False).squeeze(), 'GEOID'].values
+X_test['dropoff_county'] = gaz_zip_county.loc[kdt.query(
+    X_test[['dropoff_latitude', 'dropoff_longitude']].to_numpy(), k=1, return_distance=False).squeeze(), 'COUNTY'].values
+X_test[['pickup_county', 'dropoff_county']] = X_test[[
+    'pickup_county', 'dropoff_county']].fillna('not_in_NYC')
+X_test['dropoff_pickup_same_county'] = (
+    X_test['dropoff_county'] == X_test['pickup_county'])
 
 X_test['pickup_airport'] = X_test['pickup_zipcode'].isin(airport_zipcode)
 X_test['dropoff_airport'] = X_test['dropoff_zipcode'].isin(airport_zipcode)
 
 # encoding
 
-from pickle import load
 OH_encoder1 = load(open('encoders/OH_encoder1.pkl', 'rb'))
 freq_encoder2 = load(open('encoders/freq_encoder2.pkl', 'rb'))
 target_mean_encoder3 = load(open('encoders/target_mean_encoder3.pkl', 'rb'))
 
 X_test_encoded1 = one_hot_transform(X_test)
 # X_test_encoded2 = X_test_encoded1
-X_test_encoded2 = pd.concat([X_test_encoded1, freq_encoder2.transform(X_test_encoded1[freq_cols2]).rename(columns = dict(zip(freq_cols2, [col + '_freq_encoded' for col in freq_cols2])))], axis = 1).drop(freq_cols2, axis = 1)
+X_test_encoded2 = pd.concat([X_test_encoded1, freq_encoder2.transform(X_test_encoded1[freq_cols2]).rename(
+    columns=dict(zip(freq_cols2, [col + '_freq_encoded' for col in freq_cols2])))], axis=1).drop(freq_cols2, axis=1)
 # X_test_encoded2[[col + '_freq_encoded' for col in freq_cols2]] = X_test_encoded2[[col + '_freq_encoded' for col in freq_cols2]].astype('int32')
-X_test_encoded3 = pd.concat([X_test_encoded2, target_mean_encoder3.transform(X_test_encoded2[target_mean_cols3]).rename(columns = dict(zip(target_mean_cols3, [col + '_mean_encoded' for col in target_mean_cols3])))], axis = 1).drop(target_mean_cols3, axis = 1)
+X_test_encoded3 = pd.concat([X_test_encoded2, target_mean_encoder3.transform(X_test_encoded2[target_mean_cols3]).rename(
+    columns=dict(zip(target_mean_cols3, [col + '_mean_encoded' for col in target_mean_cols3])))], axis=1).drop(target_mean_cols3, axis=1)
 X_test_encoded4 = X_test_encoded3[cols_to_keep4]
 X_test_encoded4 = X_test_encoded4.astype(float)
 # X_test_encoded4 = X_test_encoded4.fillna(X_test_encoded4.mean())
@@ -1089,14 +1141,15 @@ del X_test_encoded1, X_test_encoded2, X_test_encoded3
 
 # predict
 
-y_test_predict = pd.Series(LGBMreg.predict(X_test_encoded4), index= X_test_id, name='fare_amount')
+y_test_predict = pd.Series(LGBMreg.predict(
+    X_test_encoded4), index=X_test_id, name='fare_amount')
 
 y_test_predict.to_csv('predictions/y_test_predict_LGBMreg.csv')
 
 
-
-fig = plt.figure('fare_amount_test_hist', dpi = 150)
-y_test_predict.to_frame()['fare_amount'].hist(bins = 100, grid = False, ax = plt.gca(), color = 'tomato')
+fig = plt.figure('fare_amount_test_hist', dpi=150)
+y_test_predict.to_frame()['fare_amount'].hist(
+    bins=100, grid=False, ax=plt.gca(), color='tomato')
 plt.yscale('log')
 ax = plt.gca()
 ax.set_xlabel('Fare amount in USD')
@@ -1105,4 +1158,3 @@ ax.spines['top'].set_visible(False)
 ax.spines['right'].set_visible(False)
 plt.xlim(-0.1,)
 # plt.savefig('plots/fare_amount_pred_hist.png', dpi = 150)
-

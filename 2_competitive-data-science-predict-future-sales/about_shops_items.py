@@ -89,27 +89,27 @@ from items.csv and item_categories.csv, we
 """
 
 
+# %% Preamble
 
-
-#%% Preamble
-
-import pandas as pd
 # Make the output look better
+import os
+from fuzzywuzzy import fuzz
+import seaborn as sns
+import re
+import matplotlib.pyplot as plt
+import pandas as pd
+import numpy as np
 pd.set_option('display.max_rows', 500)
 pd.set_option('display.max_columns', 500)
 # pd.set_option('display.width', 1000)
-pd.options.mode.chained_assignment = None  # default='warn' # ignores warning about dropping columns inplace
-import numpy as np
-import matplotlib.pyplot as plt
-import re
-import seaborn as sns
+# default='warn' # ignores warning about dropping columns inplace
+pd.options.mode.chained_assignment = None
 
 
-import os
 os.chdir(r'C:\Users\Cedric Yu\Desktop\Works\4_competitive-data-science-predict-future-sales')
 
 
-#%% about shops
+# %% about shops
 
 """# load shop names"""
 shop_info_df = pd.read_csv(r'datasets\shops.csv', low_memory=False)
@@ -118,14 +118,15 @@ shop_info_df = pd.read_csv(r'datasets\shops.csv', low_memory=False)
 """duplicated shop ids based on shop names"""
 # do a fuzzy match on shop names
 
-from fuzzywuzzy import fuzz
 
-fuzzy_match_shops = np.zeros((len(shop_info_df), len(shop_info_df))) # pairwise fuzzy match matrix
+# pairwise fuzzy match matrix
+fuzzy_match_shops = np.zeros((len(shop_info_df), len(shop_info_df)))
 fuzzy_match_pair_shops = []
-for jj in range(len(shop_info_df)) : 
-    for ii in range(jj) : 
-        fuzzy_match_shops[ii, jj] = fuzz.token_sort_ratio(shop_info_df['shop_name'][ii], shop_info_df['shop_name'][jj])
-        if fuzzy_match_shops[ii, jj] > 80 : 
+for jj in range(len(shop_info_df)):
+    for ii in range(jj):
+        fuzzy_match_shops[ii, jj] = fuzz.token_sort_ratio(
+            shop_info_df['shop_name'][ii], shop_info_df['shop_name'][jj])
+        if fuzzy_match_shops[ii, jj] > 80:
             fuzzy_match_pair_shops.append((ii, jj))
 
 """candidate duplicate shop_id pairs """
@@ -133,7 +134,7 @@ print(fuzzy_match_pair_shops)
 # [(10, 11), (23, 24), (30, 31), (39, 40), (0, 57), (1, 58)]
 
 """# not all these pairs are duplicates--- take a closer look"""
-for pair in fuzzy_match_pair_shops : 
+for pair in fuzzy_match_pair_shops:
     print(str(pair))
     print(shop_info_df['shop_name'][pair[0]])
     print(shop_info_df['shop_name'][pair[1]] + '\n')
@@ -176,23 +177,25 @@ fuzzy_match_pair = [(10, 11), (57, 0), (58, 1)]
 
 """# extract city names and shop types from shop names """
 
-def shop_city_type(row) : 
+
+def shop_city_type(row):
 
     row['shop_name'] = row['shop_name'].lower()
-    
+
     # first word is the city name
     row['shop_city'] = re.findall('[\w\-]*\s', row['shop_name'])[0].strip()
-    
+
     # there are several shop types
     shop_types = re.findall('тц|трк|трц|ул.|чс|тк', row['shop_name'])
-    if len(shop_types) > 0 : 
+    if len(shop_types) > 0:
         row['shop_type'] = shop_types[0]
-    else : 
+    else:
         row['shop_type'] = 'unknown'
-    
+
     return row
 
-shop_id_city_type = shop_info_df.apply(shop_city_type, axis = 1)
+
+shop_id_city_type = shop_info_df.apply(shop_city_type, axis=1)
 shop_id_city_type = shop_id_city_type[['shop_id', 'shop_city', 'shop_type']]
 
 """# save to csv"""
@@ -201,10 +204,11 @@ shop_id_city_type.to_csv('engineered_datasets/shop_id_city_type.csv')
 
 """# plots"""
 
+
 def plots1():
     shop_city = shop_id_city_type[['shop_city']].groupby(['shop_city']).size()
-    fig = plt.figure(dpi = 150)
-    sns.barplot(x = shop_city.values, y = shop_city.index, color = 'skyblue')
+    fig = plt.figure(dpi=150)
+    sns.barplot(x=shop_city.values, y=shop_city.index, color='skyblue')
     # plt.yscale('log')
     ax = plt.gca()
     ax.set_ylabel('Shop city')
@@ -214,10 +218,10 @@ def plots1():
     ax.spines['right'].set_visible(False)
     plt.tight_layout()
     # plt.savefig('plots/shops/shop_count_in_city.png', dpi = 150)
-    
+
     shop_type = shop_id_city_type[['shop_type']].groupby(['shop_type']).size()
-    fig = plt.figure(dpi = 150)
-    sns.barplot(x = shop_type.values, y = shop_type.index, color = 'seagreen')
+    fig = plt.figure(dpi=150)
+    sns.barplot(x=shop_type.values, y=shop_type.index, color='seagreen')
     # plt.yscale('log')
     ax = plt.gca()
     ax.set_ylabel('Shop type')
@@ -228,71 +232,72 @@ def plots1():
     plt.tight_layout()
     # plt.savefig('plots/shops/shop_count_in_type.png', dpi = 150)
 
+
 """ translations"""
 
 city_name_rus = ['адыгея',
- 'балашиха',
- 'волжский',
- 'вологда',
- 'воронеж',
- 'выездная',
- 'жуковский',
- 'интернет-магазин',
- 'казань',
- 'калуга',
- 'коломна',
- 'красноярск',
- 'курск',
- 'москва',
- 'мытищи',
- 'новгород',
- 'новосибирск',
- 'омск',
- 'ростовнадону',
- 'самара',
- 'сергиев',
- 'спб',
- 'сургут',
- 'томск',
- 'тюмень',
- 'уфа',
- 'химки',
- 'цифровой',
- 'чехов',
- 'якутск',
- 'ярославль']
+                 'балашиха',
+                 'волжский',
+                 'вологда',
+                 'воронеж',
+                 'выездная',
+                 'жуковский',
+                 'интернет-магазин',
+                 'казань',
+                 'калуга',
+                 'коломна',
+                 'красноярск',
+                 'курск',
+                 'москва',
+                 'мытищи',
+                 'новгород',
+                 'новосибирск',
+                 'омск',
+                 'ростовнадону',
+                 'самара',
+                 'сергиев',
+                 'спб',
+                 'сургут',
+                 'томск',
+                 'тюмень',
+                 'уфа',
+                 'химки',
+                 'цифровой',
+                 'чехов',
+                 'якутск',
+                 'ярославль']
 
 city_name_eng = ['adygea',
-  'balashikha',
-  'Volzhsky',
-  'Vologda',
-  'voronezh',
-  'exit',
-  'zhukovsky',
-  'online store',
-  'kazan',
-  'kaluga',
-  'Kolomna',
-  'Krasnoyarsk',
-  'Kursk',
-  'Moscow',
-  'mytischi',
-  'novgorod',
-  'novosibirsk',
-  'Omsk',
-  'Rostovnadon',
-  'samara',
-  'sergiev',
-  'spb',
-  'surgut',
-  'tomsk',
-  'tyumen',
-  'ufa',
-  'khimki',
-  'digital',
-  'chekhov',
-  'yakutsk',
-  'Yaroslavl']
+                 'balashikha',
+                 'Volzhsky',
+                 'Vologda',
+                 'voronezh',
+                 'exit',
+                 'zhukovsky',
+                 'online store',
+                 'kazan',
+                 'kaluga',
+                 'Kolomna',
+                 'Krasnoyarsk',
+                 'Kursk',
+                 'Moscow',
+                 'mytischi',
+                 'novgorod',
+                 'novosibirsk',
+                 'Omsk',
+                 'Rostovnadon',
+                 'samara',
+                 'sergiev',
+                 'spb',
+                 'surgut',
+                 'tomsk',
+                 'tyumen',
+                 'ufa',
+                 'khimki',
+                 'digital',
+                 'chekhov',
+                 'yakutsk',
+                 'Yaroslavl']
 
 city_name_dict = dict(zip(city_name_rus, city_name_eng))
 city_name_dict
@@ -341,7 +346,7 @@ shop_type_dict
 #  'ул.': 'st.',
 #  'чс': 'chs'}
 
-#%% about items 
+# %% about items
 
 """# load item names"""
 
@@ -352,30 +357,34 @@ items_cat_df = pd.read_csv(r'datasets\item_categories.csv', low_memory=False)
 
 """# extract main categories and platforms from item_category_name """
 
-def categories(row) : 
-    
+
+def categories(row):
+
     row['item_category_name'] = row['item_category_name'].lower()
-    
+
     # there are several platforms
-    platform = re.findall('pc|ps2|ps3|ps4|psp|psvita|xbox\s360|xbox\sone|android|mac', row['item_category_name'])
-    if len(platform) > 0 : 
+    platform = re.findall(
+        'pc|ps2|ps3|ps4|psp|psvita|xbox\s360|xbox\sone|android|mac', row['item_category_name'])
+    if len(platform) > 0:
         row['platform'] = platform[0]
-        row['item_main_category'] = re.sub(platform[0], '', row['item_category_name'])
-    else : 
+        row['item_main_category'] = re.sub(
+            platform[0], '', row['item_category_name'])
+    else:
         row['platform'] = 'other'
         row['item_main_category'] = row['item_category_name']
-    
-    
+
     # row['item_category_name'] = re.sub('\(|\)', '', row['item_category_name'])
     category_split = re.split('\s-\s|\s\(', row['item_main_category'])
-    category_split = [x for x in category_split if x ]
+    category_split = [x for x in category_split if x]
     # first word is the city name
     row['item_main_category'] = category_split[0].strip()
-    
+
     return row
 
-items_cat_platform = items_cat_df.apply(categories, axis = 1)
-items_cat_platform = items_cat_platform[['item_category_id', 'item_main_category', 'platform']]
+
+items_cat_platform = items_cat_df.apply(categories, axis=1)
+items_cat_platform = items_cat_platform[[
+    'item_category_id', 'item_main_category', 'platform']]
 
 """ save to csv"""
 items_cat_platform.to_csv('engineered_datasets/items_cat_platform.csv')
@@ -383,10 +392,13 @@ items_cat_platform.to_csv('engineered_datasets/items_cat_platform.csv')
 
 """# plots"""
 
+
 def plots2():
-    items_cat_count = items_cat_platform[['item_main_category']].groupby(['item_main_category']).size()
-    fig = plt.figure(dpi = 150)
-    sns.barplot(x = items_cat_count.values, y = items_cat_count.index, color = 'skyblue')
+    items_cat_count = items_cat_platform[['item_main_category']].groupby(
+        ['item_main_category']).size()
+    fig = plt.figure(dpi=150)
+    sns.barplot(x=items_cat_count.values,
+                y=items_cat_count.index, color='skyblue')
     # plt.yscale('log')
     ax = plt.gca()
     ax.set_ylabel('Main category')
@@ -396,10 +408,12 @@ def plots2():
     ax.spines['right'].set_visible(False)
     plt.tight_layout()
     # plt.savefig('plots/items/item_cat_count_in_main_cat.png', dpi = 150)
-    
-    items_platform_count = items_cat_platform[['platform']].groupby(['platform']).size()
-    fig = plt.figure(dpi = 150)
-    sns.barplot(x = items_platform_count.values, y = items_platform_count.index, color = 'seagreen')
+
+    items_platform_count = items_cat_platform[[
+        'platform']].groupby(['platform']).size()
+    fig = plt.figure(dpi=150)
+    sns.barplot(x=items_platform_count.values,
+                y=items_platform_count.index, color='seagreen')
     # plt.yscale('log')
     ax = plt.gca()
     ax.set_ylabel('Item platform')
@@ -414,36 +428,36 @@ def plots2():
 """ translations"""
 
 main_cat_rus = ['аксессуары',
- 'билеты',
- 'гарнитуры/наушники',
- 'доставка товара',
- 'игровые консоли',
- 'игры',
- 'карты оплаты',
- 'кино',
- 'книги',
- 'музыка',
- 'подарки',
- 'программы',
- 'служебные',
- 'чистые носители',
- 'элементы питания']
+                'билеты',
+                'гарнитуры/наушники',
+                'доставка товара',
+                'игровые консоли',
+                'игры',
+                'карты оплаты',
+                'кино',
+                'книги',
+                'музыка',
+                'подарки',
+                'программы',
+                'служебные',
+                'чистые носители',
+                'элементы питания']
 
 main_cat_eng = ['accessories',
-  'tickets',
-  'headsets / headphones',
-  'delivery of goods',
-  'game consoles',
-  'games',
-  'payment cards',
-  'cinema',
-  'books',
-  'music',
-  'present',
-  'programs',
-  'service',
-  'blank media',
-  'batteries']
+                'tickets',
+                'headsets / headphones',
+                'delivery of goods',
+                'game consoles',
+                'games',
+                'payment cards',
+                'cinema',
+                'books',
+                'music',
+                'present',
+                'programs',
+                'service',
+                'blank media',
+                'batteries']
 
 main_cat_dict = dict(zip(main_cat_rus, main_cat_eng))
 main_cat_dict
@@ -467,30 +481,39 @@ main_cat_dict
 """# correct item names """
 
 # get item name--- not used
-def item_name_split(row) : 
-    
+
+
+def item_name_split(row):
+
     row['item_name'] = row['item_name'].lower().strip()
     name_split = re.split('\s\[|\]', row['item_name'])
-    name_split = [x for x in name_split if x ]
-    row['item_name'] = re.sub('[~!@#$%^&*()\[\]\{\}\\\|\'\";:\/.,<>\?]*', '', name_split[0])
+    name_split = [x for x in name_split if x]
+    row['item_name'] = re.sub(
+        '[~!@#$%^&*()\[\]\{\}\\\|\'\";:\/.,<>\?]*', '', name_split[0])
     row['item_name'] = re.sub('[\s]+', ' ', row['item_name']).strip()
 
     return row
 
-items_df = items_df.apply(item_name_split, axis = 1)
+
+items_df = items_df.apply(item_name_split, axis=1)
 items_df = items_df[['item_id', 'item_category_id']]
 
-items_id_cat_platform = pd.merge(items_df, items_cat_platform, on = 'item_category_id')
+items_id_cat_platform = pd.merge(
+    items_df, items_cat_platform, on='item_category_id')
 
 """# save to csv"""
 items_id_cat_platform.to_csv(r'items_id_cat_platform.csv')
 
 # plots
+
+
 def plots3():
 
-    items_main_cat = items_id_cat_platform[['item_main_category']].groupby(['item_main_category']).size()
-    fig = plt.figure(dpi = 150)
-    sns.barplot(x = items_main_cat.values, y = items_main_cat.index, color = 'skyblue')
+    items_main_cat = items_id_cat_platform[['item_main_category']].groupby(
+        ['item_main_category']).size()
+    fig = plt.figure(dpi=150)
+    sns.barplot(x=items_main_cat.values,
+                y=items_main_cat.index, color='skyblue')
     plt.xscale('log')
     ax = plt.gca()
     ax.set_ylabel('Main category')
@@ -500,10 +523,12 @@ def plots3():
     ax.spines['right'].set_visible(False)
     plt.tight_layout()
     # plt.savefig('plots/items/item_id_count_in_main_cat.png', dpi = 150)
-    
-    items_platform = items_id_cat_platform[['platform']].groupby(['platform']).size()
-    fig = plt.figure(dpi = 150)
-    sns.barplot(x = items_platform.values, y = items_platform.index, color = 'seagreen')
+
+    items_platform = items_id_cat_platform[[
+        'platform']].groupby(['platform']).size()
+    fig = plt.figure(dpi=150)
+    sns.barplot(x=items_platform.values,
+                y=items_platform.index, color='seagreen')
     plt.xscale('log')
     ax = plt.gca()
     ax.set_ylabel('Platform')
@@ -513,6 +538,7 @@ def plots3():
     ax.spines['right'].set_visible(False)
     plt.tight_layout()
     # plt.savefig('plots/items/item_id_count_in_platform.png', dpi = 150)
+
 
 # !!!
 """

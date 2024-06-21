@@ -68,7 +68,7 @@ Created on Sun Aug 01 11:00:00 2021
 
 """
 
-#%% Workflow
+# %% Workflow
 
 """
 
@@ -116,39 +116,41 @@ feature engineering:
 """
 
 
+# %% Preamble
 
-
-#%% Preamble
-
-import pandas as pd
 # Make the output look better
+import category_encoders as ce
+from sklearn.preprocessing import MinMaxScaler
+import preprocessing_util as pp
+import os
+import re
+import matplotlib.pyplot as plt
+import pandas as pd
+import numpy as np
 pd.set_option('display.max_rows', 500)
 pd.set_option('display.max_columns', 500)
 # pd.set_option('display.width', 1000)
-pd.options.mode.chained_assignment = None  # default='warn' # ignores warning about dropping columns inplace
-import numpy as np
-import matplotlib.pyplot as plt
+# default='warn' # ignores warning about dropping columns inplace
+pd.options.mode.chained_assignment = None
 # import re
 
-import re
-import os
 os.chdir(r'C:\Users\Cedric Yu\Desktop\Works\4_competitive-data-science-predict-future-sales')
 
-#%% import preprocessing functions
-import preprocessing_util as pp
+# %% import preprocessing functions
 
-#%% load dataset train.csv
+# %% load dataset train.csv
 
-train_df_raw_cols = pd.read_csv(r'datasets\sales_train.csv', nrows = 0)
-train_df_raw_cols = train_df_raw_cols.drop(['date'], axis = 1)
+train_df_raw_cols = pd.read_csv(r'datasets\sales_train.csv', nrows=0)
+train_df_raw_cols = train_df_raw_cols.drop(['date'], axis=1)
 train_df_raw_cols = train_df_raw_cols.columns.to_list()
 
 # import original training dataset
-train_df_raw = pd.read_csv('datasets/sales_train.csv', low_memory=False, usecols = train_df_raw_cols)
+train_df_raw = pd.read_csv('datasets/sales_train.csv',
+                           low_memory=False, usecols=train_df_raw_cols)
 # train_df_raw.shape
 # (2935849, 5)
 
-#%% load test set
+# %% load test set
 
 test_df_all = pd.read_csv(r'datasets\test.csv')
 # (214200, 3)
@@ -156,30 +158,32 @@ test_df = test_df_all.copy()
 test_df_id = test_df_all.copy()
 
 
-#%% drop outliers
+# %% drop outliers
 
 train_df_month = train_df_raw.copy()
 
-train_df_month = train_df_month[ 
-    (train_df_month['item_cnt_day'] > 0) 
-    & (train_df_month['item_cnt_day'] < 750) 
-    & (train_df_month['item_price'] > 0.01) 
+train_df_month = train_df_month[
+    (train_df_month['item_cnt_day'] > 0)
+    & (train_df_month['item_cnt_day'] < 750)
+    & (train_df_month['item_price'] > 0.01)
     & (train_df_month['item_price'] < 75000
        )]
 
 # train_df_raw.shape # (2935849, 5)
 
-#%% merge shop duplicate pairs
+# %% merge shop duplicate pairs
 
 train_df_month = pp.shop_duplicates(train_df_month)
 
-#%% add 'month' and 'year' columns, aggregate monthy
+# %% add 'month' and 'year' columns, aggregate monthy
 
 """aggregate monthly for each ('shop_id', 'item_id') """
 # train_df_month = train_df_month.drop(['date'], axis = 1)
-train_df_month = train_df_month.groupby(['date_block_num', 'shop_id', 'item_id']).agg({'item_price': np.nanmean, 'item_cnt_day': np.nansum})
-train_df_month.reset_index(inplace = True)
-train_df_month.rename(columns = {'item_price': 'item_price_mean', 'item_cnt_day': 'item_cnt_month'}, inplace = True)
+train_df_month = train_df_month.groupby(['date_block_num', 'shop_id', 'item_id']).agg(
+    {'item_price': np.nanmean, 'item_cnt_day': np.nansum})
+train_df_month.reset_index(inplace=True)
+train_df_month.rename(columns={
+                      'item_price': 'item_price_mean', 'item_cnt_day': 'item_cnt_month'}, inplace=True)
 
 
 """ add 'month', 'year' columns"""
@@ -187,7 +191,7 @@ train_df_month['month'] = train_df_month['date_block_num'] % 12 + 1
 train_df_month['year'] = train_df_month['date_block_num'] // 12 + 1
 
 """# sort by date_block_num"""
-train_df_month = train_df_month.sort_values(['year', 'month'], ascending = True)
+train_df_month = train_df_month.sort_values(['year', 'month'], ascending=True)
 
 """ assign datetime dolumns to test set"""
 test_df['date_block_num'] = 34
@@ -195,44 +199,50 @@ test_df['year'] = 3
 test_df['month'] = 11
 
 """ concat training and test sets"""
-train_df_month_test = pd.concat([train_df_month, test_df], axis = 0)
+train_df_month_test = pd.concat([train_df_month, test_df], axis=0)
 
-#%% append shop columns and item columns
+# %% append shop columns and item columns
 
 """append shop columns and item columns"""
-train_df_month_test = pd.merge(train_df_month_test, pp.shop_id_city_type, how = 'left', on = 'shop_id')
-train_df_month_test = pd.merge(train_df_month_test, pp.items_id_cat_platform, how = 'left', on = 'item_id')
+train_df_month_test = pd.merge(
+    train_df_month_test, pp.shop_id_city_type, how='left', on='shop_id')
+train_df_month_test = pd.merge(
+    train_df_month_test, pp.items_id_cat_platform, how='left', on='item_id')
 
 # train_df_month.shape
 # (1608224, 7)
 
-#%% create lag features from target
+# %% create lag features from target
 
 lag_months = 14
 lag_cols = ['item_cnt_month', 'item_price_mean']
 
-for col in lag_cols : 
+for col in lag_cols:
     train_df_month_test = pp.lags(train_df_month_test, col, lag_months)
 
 """ keep lag features: 1-3, 12-14 months for item_cnt_month, and 1-2, 11-12 months for item_price_mean"""
-train_df_month_test = train_df_month_test.drop(['item_cnt_month_lag_' + str(i) for i in np.arange(5, 12)], axis = 1)
-train_df_month_test = train_df_month_test.drop(['item_price_mean_lag_' + str(i) for i in np.arange(5, 12)], axis = 1)
+train_df_month_test = train_df_month_test.drop(
+    ['item_cnt_month_lag_' + str(i) for i in np.arange(5, 12)], axis=1)
+train_df_month_test = train_df_month_test.drop(
+    ['item_price_mean_lag_' + str(i) for i in np.arange(5, 12)], axis=1)
 
 
-#%% train-validation split
+# %% train-validation split
 
 """ We used largest lag month = 14.  """
 """# we do a time-ordered split; training set contains March 2014 to Jul 2015, validation set contains Aug 2015 - Oct 2015"""
 
-df_train = train_df_month_test[(train_df_month_test['date_block_num'] > lag_months - 1) & (train_df_month_test['date_block_num'] < 31 )]
+df_train = train_df_month_test[(train_df_month_test['date_block_num']
+                                > lag_months - 1) & (train_df_month_test['date_block_num'] < 31)]
 
-df_valid = train_df_month_test[(train_df_month_test['date_block_num'] > 30) & (train_df_month_test['date_block_num'] < 34 )]
+df_valid = train_df_month_test[(train_df_month_test['date_block_num'] > 30) & (
+    train_df_month_test['date_block_num'] < 34)]
 
-df_test = train_df_month_test[ train_df_month_test['date_block_num'] == 34 ]
+df_test = train_df_month_test[train_df_month_test['date_block_num'] == 34]
 
-#%% feature-target split
+# %% feature-target split
 
-X_train = df_train.drop(['item_cnt_month', 'ID'], axis = 1)
+X_train = df_train.drop(['item_cnt_month', 'ID'], axis=1)
 y_train = df_train['item_cnt_month']
 # print(list(X_train.columns))
 # ['date_block_num', 'shop_id', 'item_id', 'item_price_mean', 'month', 'year', 'shop_city', 'shop_type', 'item_category_id', 'item_main_category', 'platform', 'item_cnt_month_lag_1', 'item_cnt_month_lag_2', 'item_cnt_month_lag_3', 'item_cnt_month_lag_12', 'item_cnt_month_lag_13', 'item_cnt_month_lag_14', 'item_price_mean_lag_1', 'item_price_mean_lag_2', 'item_price_mean_lag_11', 'item_price_mean_lag_12']
@@ -240,19 +250,19 @@ y_train = df_train['item_cnt_month']
 # X_train.shape
 # Out[32]: (725301, 21)
 
-X_valid = df_valid.drop(['item_cnt_month', 'item_price_mean', 'ID'], axis = 1)
+X_valid = df_valid.drop(['item_cnt_month', 'item_price_mean', 'ID'], axis=1)
 y_valid = df_valid['item_cnt_month']
 
 # X_valid.shape
 # Out[33]: (94645, 21)
 
-X_test = df_test.drop(['item_cnt_month', 'item_price_mean', 'ID'], axis = 1)
+X_test = df_test.drop(['item_cnt_month', 'item_price_mean', 'ID'], axis=1)
 y_test = df_test[['ID', 'shop_id', 'item_id', 'item_cnt_month']]
 
 # X_test.shape
 # Out[36]: (214200, 21)
 
-#%% Add new shop and item columns
+# %% Add new shop and item columns
 
 good_shops_items = pp.good_shops_items0()
 
@@ -269,11 +279,12 @@ X_test.shape
 
 """ check indices in X and y """
 
-#%% encoding categorical features
+# %% encoding categorical features
 
 onehot_cols1 = []
 
-freq_cols2 = ['first_open_month_num', 'month', 'year', 'shop_city', 'shop_type', 'item_main_category', 'platform']
+freq_cols2 = ['first_open_month_num', 'month', 'year',
+              'shop_city', 'shop_type', 'item_main_category', 'platform']
 
 target_mean_cols3 = []
 
@@ -290,21 +301,24 @@ X_test_encoded1 = X_test
 
 
 """# frequency encoding"""
-import category_encoders as ce
 
 # change data type to object before feeding it into the encoder
 X_train_encoded1[freq_cols2] = X_train_encoded1[freq_cols2].astype(object)
 freq_encoder2 = ce.count.CountEncoder()
 freq_encoder2.fit(X_train_encoded1[freq_cols2])
 
-X_train_encoded2 = pd.concat([X_train_encoded1, freq_encoder2.transform(X_train_encoded1[freq_cols2]).rename(columns = dict(zip(freq_cols2, [col + '_freq_encoded' for col in freq_cols2])))], axis = 1).drop(freq_cols2, axis = 1)
+X_train_encoded2 = pd.concat([X_train_encoded1, freq_encoder2.transform(X_train_encoded1[freq_cols2]).rename(
+    columns=dict(zip(freq_cols2, [col + '_freq_encoded' for col in freq_cols2])))], axis=1).drop(freq_cols2, axis=1)
 
 X_valid_encoded1[freq_cols2] = X_valid_encoded1[freq_cols2].astype(object)
-X_valid_encoded2 = pd.concat([X_valid_encoded1, freq_encoder2.transform(X_valid_encoded1[freq_cols2]).rename(columns = dict(zip(freq_cols2, [col + '_freq_encoded' for col in freq_cols2])))], axis = 1).drop(freq_cols2, axis = 1)
+X_valid_encoded2 = pd.concat([X_valid_encoded1, freq_encoder2.transform(X_valid_encoded1[freq_cols2]).rename(
+    columns=dict(zip(freq_cols2, [col + '_freq_encoded' for col in freq_cols2])))], axis=1).drop(freq_cols2, axis=1)
 
 X_test_encoded1[freq_cols2] = X_test_encoded1[freq_cols2].astype(object)
-X_test_encoded2 = pd.concat([X_test_encoded1, freq_encoder2.transform(X_test_encoded1[freq_cols2]).rename(columns = dict(zip(freq_cols2, [col + '_freq_encoded' for col in freq_cols2])))], axis = 1).drop(freq_cols2, axis = 1)
-X_test_encoded2[[col + '_freq_encoded' for col in freq_cols2]] = X_test_encoded2[[col + '_freq_encoded' for col in freq_cols2]]
+X_test_encoded2 = pd.concat([X_test_encoded1, freq_encoder2.transform(X_test_encoded1[freq_cols2]).rename(
+    columns=dict(zip(freq_cols2, [col + '_freq_encoded' for col in freq_cols2])))], axis=1).drop(freq_cols2, axis=1)
+X_test_encoded2[[col + '_freq_encoded' for col in freq_cols2]
+                ] = X_test_encoded2[[col + '_freq_encoded' for col in freq_cols2]]
 
 
 """target encoding """
@@ -321,7 +335,6 @@ X_test_encoded2[[col + '_freq_encoded' for col in freq_cols2]] = X_test_encoded2
 # X_valid_encoded3 = pd.concat([X_valid_encoded2, target_mean_encoder3.transform(X_valid_encoded2[target_mean_cols3]).rename(columns = dict(zip(target_mean_cols3, [col + '_mean_encoded' for col in target_mean_cols3])))], axis = 1).drop(target_mean_cols3, axis = 1)
 
 
-
 # X_test_encoded2[target_mean_cols3] = X_test_encoded2[target_mean_cols3].astype(object)
 # X_test_encoded3 = pd.concat([X_test_encoded2, target_mean_encoder3.transform(X_test_encoded2[target_mean_cols3]).rename(columns = dict(zip(target_mean_cols3, [col + '_mean_encoded' for col in target_mean_cols3])))], axis = 1).drop(target_mean_cols3, axis = 1)
 
@@ -329,62 +342,67 @@ X_train_encoded3 = X_train_encoded2
 X_valid_encoded3 = X_valid_encoded2
 X_test_encoded3 = X_test_encoded2
 
-#%% fillna that resulted from encoding
+# %% fillna that resulted from encoding
 
 X_valid_encoded3 = X_valid_encoded3.fillna(X_train_encoded3.mean())
 X_test_encoded3 = X_test_encoded3.fillna(X_train_encoded3.mean())
 
 
-
-#%% select columns
+# %% select columns
 
 cols_to_keep = ['item_cnt_month_lag_1', 'item_cnt_month_lag_2', 'item_cnt_month_lag_3',
-       'item_cnt_month_lag_4', 'item_cnt_month_lag_12',
-       'item_cnt_month_lag_13', 'item_cnt_month_lag_14',
-       'item_price_mean_lag_1', 'item_price_mean_lag_2',
-       'item_price_mean_lag_3', 'item_price_mean_lag_4',
-       'item_price_mean_lag_12', 'item_price_mean_lag_13',
-       'item_price_mean_lag_14', 'first_open_month_num_freq_encoded',
-       'month_freq_encoded', 'year_freq_encoded', 'shop_city_freq_encoded',
-       'shop_type_freq_encoded', 'item_main_category_freq_encoded',
-       'platform_freq_encoded']
+                'item_cnt_month_lag_4', 'item_cnt_month_lag_12',
+                'item_cnt_month_lag_13', 'item_cnt_month_lag_14',
+                'item_price_mean_lag_1', 'item_price_mean_lag_2',
+                'item_price_mean_lag_3', 'item_price_mean_lag_4',
+                'item_price_mean_lag_12', 'item_price_mean_lag_13',
+                'item_price_mean_lag_14', 'first_open_month_num_freq_encoded',
+                'month_freq_encoded', 'year_freq_encoded', 'shop_city_freq_encoded',
+                'shop_type_freq_encoded', 'item_main_category_freq_encoded',
+                'platform_freq_encoded']
 
 X_train_encoded4 = X_train_encoded3[cols_to_keep]
 X_valid_encoded4 = X_valid_encoded3[cols_to_keep]
 X_test_encoded4 = X_test_encoded3[cols_to_keep]
 
 
-#%% scaler
+# %% scaler
 
-from sklearn.preprocessing import MinMaxScaler
 scaler5 = MinMaxScaler()
 
 X_train_encoded4_scaled = scaler5.fit_transform(X_train_encoded4)
-X_train_encoded4_scaled = pd.DataFrame(X_train_encoded4_scaled, columns = X_train_encoded4.columns, index = X_train_encoded4.index)
+X_train_encoded4_scaled = pd.DataFrame(
+    X_train_encoded4_scaled, columns=X_train_encoded4.columns, index=X_train_encoded4.index)
 
 X_valid_encoded4_scaled = scaler5.transform(X_valid_encoded4)
-X_valid_encoded4_scaled = pd.DataFrame(X_valid_encoded4_scaled, columns = X_valid_encoded4.columns, index = X_valid_encoded4.index)
+X_valid_encoded4_scaled = pd.DataFrame(
+    X_valid_encoded4_scaled, columns=X_valid_encoded4.columns, index=X_valid_encoded4.index)
 
 X_test_encoded4_scaled = scaler5.transform(X_test_encoded4)
-X_test_encoded4_scaled = pd.DataFrame(X_test_encoded4_scaled, columns = X_test_encoded4.columns, index = X_test_encoded4.index)
+X_test_encoded4_scaled = pd.DataFrame(
+    X_test_encoded4_scaled, columns=X_test_encoded4.columns, index=X_test_encoded4.index)
 
-#%% clip item_cnt_month in the range [0, 20]
+# %% clip item_cnt_month in the range [0, 20]
 
-def clip_cnt(y) : 
+
+def clip_cnt(y):
     y = y.copy()
-    y.clip(0., 20., inplace = True)
+    y.clip(0., 20., inplace=True)
     return y
+
 
 y_train = clip_cnt(y_train)
 y_valid = clip_cnt(y_valid)
 # train_df_month['item_cnt_month'].plot(kind = 'box')
 
-#%% save pre-processed datasets
+# %% save pre-processed datasets
 
 X_train_encoded4.to_csv('engineered_datasets/X_train_encoded4.csv')
 X_valid_encoded4.to_csv('engineered_datasets/X_valid_encoded4.csv')
-X_train_encoded4_scaled.to_csv('engineered_datasets/X_train_encoded4_scaled.csv')
-X_valid_encoded4_scaled.to_csv('engineered_datasets/X_valid_encoded4_scaled.csv')
+X_train_encoded4_scaled.to_csv(
+    'engineered_datasets/X_train_encoded4_scaled.csv')
+X_valid_encoded4_scaled.to_csv(
+    'engineered_datasets/X_valid_encoded4_scaled.csv')
 y_train.to_csv('engineered_datasets/y_train.csv')
 y_valid.to_csv('engineered_datasets/y_valid.csv')
 

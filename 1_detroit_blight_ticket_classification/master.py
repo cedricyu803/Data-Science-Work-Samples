@@ -11,7 +11,7 @@ Created on Sun Sep 12 11:00:00 2021
 
 # Your AUC of 0.774448781327 was awarded a value of 1.0 out of 1.0 total grades
 
-#%%
+# %%
 """
 # Note: when submitting on Coursera, use get_dummies instead of one-hot encoder
 
@@ -118,36 +118,51 @@ Refer to the pinned threads in Week 4's discussion forum when there is something
 
 """
 
-#%% Preamble
+# %% Preamble
 
-import pandas as pd
 # Make the output look better
+from sklearn.decomposition import PCA, TruncatedSVD
+from sklearn.preprocessing import MinMaxScaler
+import lightgbm as lgb
+from sklearn.ensemble import RandomForestClassifier
+from sklearn.model_selection import RandomizedSearchCV
+from xgboost import XGBClassifier
+from sklearn.model_selection import GridSearchCV
+from sklearn.neighbors import KNeighborsClassifier
+from sklearn.dummy import DummyClassifier
+from sklearn.metrics import roc_curve, auc
+import os
+import gc
+import re
+import seaborn as sns
+import matplotlib.pyplot as plt
+import pandas as pd
+import numpy as np
 pd.set_option('display.max_rows', 500)
 pd.set_option('display.max_columns', 500)
 # pd.set_option('display.width', 1000)
 pd.options.mode.chained_assignment = None  # default='warn'
-import numpy as np
-import matplotlib.pyplot as plt
-import seaborn as sns
-import re
-import gc
 
-import os
 os.chdir(r'C:\Users\Cedric Yu\Desktop\Works\2_detroit_blight_ticket_classification')
 
 
-#%% load pre-processed datasets for model training
+# %% load pre-processed datasets for model training
 # !!!
 
-X_train_encoded4_scaled = pd.read_csv('engineered_datasets/X_train_encoded4_scaled.csv', index_col = [0])
-X_valid_encoded4_scaled = pd.read_csv('engineered_datasets/X_valid_encoded4_scaled.csv', index_col = [0])
+X_train_encoded4_scaled = pd.read_csv(
+    'engineered_datasets/X_train_encoded4_scaled.csv', index_col=[0])
+X_valid_encoded4_scaled = pd.read_csv(
+    'engineered_datasets/X_valid_encoded4_scaled.csv', index_col=[0])
 
-test_id = pd.read_csv('engineered_datasets/test_df_datetime.csv', usecols = [1])
+test_id = pd.read_csv('engineered_datasets/test_df_datetime.csv', usecols=[1])
 
-X_test_encoded4_scaled = pd.read_csv('engineered_datasets/X_test_encoded4_scaled.csv', index_col = [0])
+X_test_encoded4_scaled = pd.read_csv(
+    'engineered_datasets/X_test_encoded4_scaled.csv', index_col=[0])
 
-y_train = pd.read_csv('engineered_datasets/y_train.csv', index_col = [0]).squeeze()
-y_valid = pd.read_csv('engineered_datasets/y_valid.csv', index_col = [0]).squeeze()
+y_train = pd.read_csv('engineered_datasets/y_train.csv',
+                      index_col=[0]).squeeze()
+y_valid = pd.read_csv('engineered_datasets/y_valid.csv',
+                      index_col=[0]).squeeze()
 
 gc.collect()
 
@@ -155,30 +170,31 @@ X_train_encoded4_scaled.shape
 # (127891, 24)
 
 
+# %% model scores
 
-#%% model scores
-
-from sklearn.metrics import roc_curve, auc
 
 #################################
 
-from sklearn.dummy import DummyClassifier
-dummy_clf = DummyClassifier(strategy = 'most_frequent').fit(X_train_encoded4_scaled, y_train)
+dummy_clf = DummyClassifier(strategy='most_frequent').fit(
+    X_train_encoded4_scaled, y_train)
 
-y_valid_predict_proba_dummy_clf = dummy_clf.predict_proba(X_valid_encoded4_scaled)
+y_valid_predict_proba_dummy_clf = dummy_clf.predict_proba(
+    X_valid_encoded4_scaled)
 
-fpr_dummy_clf, tpr_dummy_clf, thresholds_dummy_clf  = roc_curve(y_valid, y_valid_predict_proba_dummy_clf[:,1])
+fpr_dummy_clf, tpr_dummy_clf, thresholds_dummy_clf = roc_curve(
+    y_valid, y_valid_predict_proba_dummy_clf[:, 1])
 auc_dummy_clf = auc(fpr_dummy_clf, tpr_dummy_clf)
 
 print('ROC-AUC scores:')
 print('Dummy classifier: {:.3f}\n'.format(auc_dummy_clf))
-# ROC-AUC scores: 
+# ROC-AUC scores:
 # Dummy classifier: 0.500
 
-plt.figure(figsize = (10, 10), dpi = 150)
+plt.figure(figsize=(10, 10), dpi=150)
 plt.xlim([-0.01, 1.00])
 plt.ylim([-0.01, 1.01])
-plt.plot(fpr_dummy_clf, tpr_dummy_clf, lw=3, label='Dummy classifier ROC curve (area = {:0.2f})'.format(auc_dummy_clf))
+plt.plot(fpr_dummy_clf, tpr_dummy_clf, lw=3,
+         label='Dummy classifier ROC curve (area = {:0.2f})'.format(auc_dummy_clf))
 plt.xlabel('False Positive Rate', fontsize=16)
 plt.ylabel('True Positive Rate', fontsize=16)
 plt.title('ROC curve', fontsize=16)
@@ -188,19 +204,17 @@ plt.plot([0, 1], [0, 1], color='navy', lw=3, linestyle='--')
 plt.show()
 
 
-
-
 #################################
 
-from sklearn.neighbors import KNeighborsClassifier
 k = 7
-knnclf = KNeighborsClassifier(n_neighbors = k)
+knnclf = KNeighborsClassifier(n_neighbors=k)
 knnclf.fit(X_train_encoded4_scaled, y_train)
 
 
 y_valid_predict_proba_knnclf = knnclf.predict_proba(X_valid_encoded4_scaled)
 
-fpr_knnclf, tpr_knnclf, thresholds_knnclf  = roc_curve(y_valid, y_valid_predict_proba_knnclf[:,1])
+fpr_knnclf, tpr_knnclf, thresholds_knnclf = roc_curve(
+    y_valid, y_valid_predict_proba_knnclf[:, 1])
 auc_knnclf = auc(fpr_knnclf, tpr_knnclf)
 
 print('ROC-AUC scores:')
@@ -208,10 +222,11 @@ print('KNN classifier: {:.3f}\n'.format(auc_knnclf))
 # ROC-AUC scores:
 # KNN classifier: 0.727
 
-plt.figure(figsize = (6, 6), dpi = 150)
+plt.figure(figsize=(6, 6), dpi=150)
 plt.xlim([-0.01, 1.00])
 plt.ylim([-0.01, 1.01])
-plt.plot(fpr_knnclf, tpr_knnclf, lw=3, label='KNN classifier (k={}) ROC curve (area = {:0.3f})'.format(k, auc_knnclf))
+plt.plot(fpr_knnclf, tpr_knnclf, lw=3,
+         label='KNN classifier (k={}) ROC curve (area = {:0.3f})'.format(k, auc_knnclf))
 plt.xlabel('False Positive Rate', fontsize=16)
 plt.ylabel('True Positive Rate', fontsize=16)
 plt.title('ROC curve', fontsize=16)
@@ -225,46 +240,43 @@ plt.tight_layout()
 # np.save('ROC/auc_knnclf', auc_knnclf)
 
 
-from sklearn.model_selection import GridSearchCV
-
 knnclf2 = KNeighborsClassifier()
 grid_values_knn = {'n_neighbors': [4, 5, 6, 7]}
 # grid_values_knn = {'n_neighbors': [4, 5, 6, 7], 'p': [1, 2, 3]}
 
-knnclf2_roc_auc = GridSearchCV(knnclf2, param_grid = grid_values_knn, scoring='roc_auc', cv = 3, verbose = 1)
+knnclf2_roc_auc = GridSearchCV(
+    knnclf2, param_grid=grid_values_knn, scoring='roc_auc', cv=3, verbose=1)
 knnclf2_roc_auc.fit(X_train_encoded4_scaled, y_train)
 print('Grid best parameter (roc_auc): ', knnclf2_roc_auc.best_params_)
 # Grid best parameter (roc_auc):  {'n_neighbors': 7}
 
 
-
 #################################
 
 
-from xgboost import XGBClassifier
-
-
-
-# XGBR_model = XGBRegressor(eval_metric = "rmse", 
-#                           learning_rate = 0.05, 
+# XGBR_model = XGBRegressor(eval_metric = "rmse",
+#                           learning_rate = 0.05,
 #                           max_depth = 8,
 #                           n_estimators = 100,
 #                           reg_lambda = 0.7,
 #                           n_jobs = 6)
 
 
-XGBC_model = XGBClassifier(scale_pos_weight = (127891.-9247.)/9247., 
-                           eval_metric='auc', 
-                           n_estimators = 900, 
-                           max_depth = 7,
-                           learning_rate = 0.01,
-                           n_jobs = 8)
-XGBC_model.fit(X_train_encoded4_scaled, y_train, eval_set = [(X_train_encoded4_scaled, y_train), (X_valid_encoded4_scaled, y_valid)], early_stopping_rounds = 40)
+XGBC_model = XGBClassifier(scale_pos_weight=(127891.-9247.)/9247.,
+                           eval_metric='auc',
+                           n_estimators=900,
+                           max_depth=7,
+                           learning_rate=0.01,
+                           n_jobs=8)
+XGBC_model.fit(X_train_encoded4_scaled, y_train, eval_set=[
+               (X_train_encoded4_scaled, y_train), (X_valid_encoded4_scaled, y_valid)], early_stopping_rounds=40)
 
 
-y_valid_predict_proba_XGBC_model = XGBC_model.predict_proba(X_valid_encoded4_scaled)
+y_valid_predict_proba_XGBC_model = XGBC_model.predict_proba(
+    X_valid_encoded4_scaled)
 
-fpr_XGBC_model, tpr_XGBC_model, thresholds_XGBC_model  = roc_curve(y_valid, y_valid_predict_proba_XGBC_model[:,1])
+fpr_XGBC_model, tpr_XGBC_model, thresholds_XGBC_model = roc_curve(
+    y_valid, y_valid_predict_proba_XGBC_model[:, 1])
 auc_XGBC_model = auc(fpr_XGBC_model, tpr_XGBC_model)
 
 print('ROC-AUC scores:')
@@ -273,10 +285,11 @@ print('XGBoost classifier: {:.3f}\n'.format(auc_XGBC_model))
 # XGBoost classifier: 0.833
 
 
-plt.figure(figsize = (6, 6), dpi = 150)
+plt.figure(figsize=(6, 6), dpi=150)
 plt.xlim([-0.01, 1.00])
 plt.ylim([-0.01, 1.01])
-plt.plot(fpr_XGBC_model, tpr_XGBC_model, lw=3, label='XGBoost classifier ROC curve (area = {:0.3f})'.format(auc_XGBC_model))
+plt.plot(fpr_XGBC_model, tpr_XGBC_model, lw=3,
+         label='XGBoost classifier ROC curve (area = {:0.3f})'.format(auc_XGBC_model))
 plt.xlabel('False Positive Rate', fontsize=16)
 plt.ylabel('True Positive Rate', fontsize=16)
 plt.title('ROC curve', fontsize=16)
@@ -290,8 +303,8 @@ plt.tight_layout()
 # np.save('ROC/auc_XGBC_model', auc_XGBC_model)
 
 
-
-XGBR_feature_importances = pd.Series(XGBC_model.feature_importances_, index = X_train_encoded4_scaled.columns).sort_values(ascending = False)
+XGBR_feature_importances = pd.Series(
+    XGBC_model.feature_importances_, index=X_train_encoded4_scaled.columns).sort_values(ascending=False)
 # disposition_Responsible by Default                            0.590807
 # late_fee                                                      0.140346
 # disposition_Responsible by Admission                          0.078259
@@ -319,8 +332,8 @@ XGBR_feature_importances = pd.Series(XGBC_model.feature_importances_, index = X_
 # dtype: float32
 
 
-plt.figure(figsize = (12, 6), dpi = 150)
-XGBR_feature_importances[0:10].plot.barh(color = 'skyblue')
+plt.figure(figsize=(12, 6), dpi=150)
+XGBR_feature_importances[0:10].plot.barh(color='skyblue')
 plt.xlabel(None)
 plt.ylabel(None)
 ax = plt.gca()
@@ -330,16 +343,17 @@ plt.tight_layout()
 # plt.savefig('plots/XGBM_feature_imp', dpi = 150)
 
 """RandomizedSearchCV """
-from sklearn.model_selection import RandomizedSearchCV
 
-grid_values_XGBC = {'n_estimators': list(np.arange(100, 1100, 100)), 'learning_rate': [0.001, 0.01, 0.1], 'max_depth': [3, 4, 5, 6, 7]}
+grid_values_XGBC = {'n_estimators': list(np.arange(100, 1100, 100)), 'learning_rate': [
+    0.001, 0.01, 0.1], 'max_depth': [3, 4, 5, 6, 7]}
 
-fit_params={"eval_metric" : "auc", 
-            "eval_set" : [[X_valid_encoded4_scaled, y_valid]]}
+fit_params = {"eval_metric": "auc",
+              "eval_set": [[X_valid_encoded4_scaled, y_valid]]}
 
-XGBC_model2 = XGBClassifier(eval_metric="auc", n_jobs = 8)
+XGBC_model2 = XGBClassifier(eval_metric="auc", n_jobs=8)
 
-XGBC_model_search = RandomizedSearchCV(XGBC_model2, param_distributions = grid_values_XGBC, scoring = 'roc_auc', cv = 3, verbose = 1, n_iter = 10)
+XGBC_model_search = RandomizedSearchCV(
+    XGBC_model2, param_distributions=grid_values_XGBC, scoring='roc_auc', cv=3, verbose=1, n_iter=10)
 XGBC_model_search.fit(X_train_encoded4_scaled, y_train, **fit_params)
 print('Grid best parameters (roc_auc): ', XGBC_model_search.best_params_)
 # Grid best parameters (roc_auc):  {'n_estimators': 900, 'max_depth': 7, 'learning_rate': 0.01}
@@ -348,15 +362,14 @@ print('Grid best parameters (roc_auc): ', XGBC_model_search.best_params_)
 #################################
 
 
-from sklearn.ensemble import RandomForestClassifier
-RFC = RandomForestClassifier(class_weight = 'balanced', 
-                             n_estimators = 700, 
-                             max_depth = 20, 
-                             max_features= 'auto', 
-                             min_samples_leaf = 1, 
-                             min_samples_split = 16, 
-                             random_state = 0, 
-                             n_jobs = -1)
+RFC = RandomForestClassifier(class_weight='balanced',
+                             n_estimators=700,
+                             max_depth=20,
+                             max_features='auto',
+                             min_samples_leaf=1,
+                             min_samples_split=16,
+                             random_state=0,
+                             n_jobs=-1)
 RFC.fit(X_train_encoded4_scaled, y_train)
 
 
@@ -368,7 +381,8 @@ RFC.fit(X_train_encoded4_scaled, y_train)
 
 y_valid_predict_proba_RFC = RFC.predict_proba(X_valid_encoded4_scaled)
 
-fpr_RFC, tpr_RFC, thresholds_RFC  = roc_curve(y_valid, y_valid_predict_proba_RFC[:,1])
+fpr_RFC, tpr_RFC, thresholds_RFC = roc_curve(
+    y_valid, y_valid_predict_proba_RFC[:, 1])
 auc_RFC = auc(fpr_RFC, tpr_RFC)
 
 print('ROC-AUC scores:')
@@ -377,10 +391,11 @@ print('RandomForestclassifier: {:.3f}\n'.format(auc_RFC))
 # RandomForestclassifier: 0.836
 
 
-plt.figure(figsize = (6, 6), dpi = 150)
+plt.figure(figsize=(6, 6), dpi=150)
 plt.xlim([-0.01, 1.00])
 plt.ylim([-0.01, 1.01])
-plt.plot(fpr_RFC, tpr_RFC, lw=3, label='RandomForestclassifier ROC curve (area = {:0.3f})'.format(auc_RFC))
+plt.plot(fpr_RFC, tpr_RFC, lw=3,
+         label='RandomForestclassifier ROC curve (area = {:0.3f})'.format(auc_RFC))
 plt.xlabel('False Positive Rate', fontsize=16)
 plt.ylabel('True Positive Rate', fontsize=16)
 plt.title('ROC curve', fontsize=16)
@@ -394,7 +409,8 @@ np.save('ROC/tpr_RFC', tpr_RFC)
 np.save('ROC/auc_RFC', auc_RFC)
 
 
-RFC_feature_importances = pd.Series(RFC.feature_importances_, index = original_cols).sort_values(ascending = False)
+RFC_feature_importances = pd.Series(
+    RFC.feature_importances_, index=original_cols).sort_values(ascending=False)
 RFC_feature_importances = RFC_feature_importances / RFC_feature_importances.max()
 # late_fee                                                      1.000000
 # disposition_Responsible by Default                            0.861825
@@ -423,8 +439,8 @@ RFC_feature_importances = RFC_feature_importances / RFC_feature_importances.max(
 # dtype: float64
 
 
-plt.figure(figsize = (12, 6), dpi = 150)
-RFC_feature_importances[0:10].plot.barh(color = 'skyblue')
+plt.figure(figsize=(12, 6), dpi=150)
+RFC_feature_importances[0:10].plot.barh(color='skyblue')
 plt.xlabel(None)
 plt.ylabel(None)
 ax = plt.gca()
@@ -433,8 +449,6 @@ ax.spines['right'].set_visible(False)
 plt.tight_layout()
 # plt.savefig('plots/RFC_feature_imp', dpi = 150)
 
-
-from sklearn.model_selection import RandomizedSearchCV
 
 # Number of trees in random forest
 n_estimators = np.arange(100, 1050, 50)
@@ -451,17 +465,17 @@ min_samples_leaf = [1, 4, 128, 512, 1024, 4096]
 
 # Create the random grid
 random_grid_RFC = {'n_estimators': n_estimators,
-                'max_features': max_features,
-                'max_depth': max_depth,
-                'min_samples_split': min_samples_split,
-                'min_samples_leaf': min_samples_leaf}
+                   'max_features': max_features,
+                   'max_depth': max_depth,
+                   'min_samples_split': min_samples_split,
+                   'min_samples_leaf': min_samples_leaf}
 
 
-RFC_model = RandomForestClassifier(random_state = 0, n_jobs = -1)
-RFC_model_search = RandomizedSearchCV(RFC_model, param_distributions = random_grid_RFC, scoring = 'roc_auc', cv = 3, verbose = 1, n_iter = 6)
+RFC_model = RandomForestClassifier(random_state=0, n_jobs=-1)
+RFC_model_search = RandomizedSearchCV(
+    RFC_model, param_distributions=random_grid_RFC, scoring='roc_auc', cv=3, verbose=1, n_iter=6)
 RFC_model_search.fit(X_train_encoded4_scaled, y_train)
 print('Grid best parameter (auc): ', RFC_model_search.best_params_)
-
 
 
 # from pickle import dump
@@ -469,47 +483,46 @@ print('Grid best parameter (auc): ', RFC_model_search.best_params_)
 # dump(RFC_best, open('RFC_best.pkl', 'wb'))
 
 
-
 #################################
 
-import lightgbm as lgb
 
 # column names have unsupported characters
 original_cols = X_train_encoded4_scaled.columns
-X_train_encoded4_scaled.columns = np.arange(0,24)
-X_valid_encoded4_scaled.columns = np.arange(0,24)
-X_test_encoded4_scaled.columns = np.arange(0,24)
+X_train_encoded4_scaled.columns = np.arange(0, 24)
+X_valid_encoded4_scaled.columns = np.arange(0, 24)
+X_test_encoded4_scaled.columns = np.arange(0, 24)
 
-LGBMclf = lgb.LGBMClassifier(class_weight = 'balanced', 
-                             learning_rate = 0.01, 
-                            num_leaves = 800,
-                            n_estimators = 500, 
-                            num_iterations = 900, 
-                            max_bin = 500, 
-                            feature_fraction = 0.7, 
-                            bagging_fraction = 0.7,
-                            lambda_l2 = 0.5,
-                            max_depth = 7,
-                            silent = False
-                            )
+LGBMclf = lgb.LGBMClassifier(class_weight='balanced',
+                             learning_rate=0.01,
+                             num_leaves=800,
+                             n_estimators=500,
+                             num_iterations=900,
+                             max_bin=500,
+                             feature_fraction=0.7,
+                             bagging_fraction=0.7,
+                             lambda_l2=0.5,
+                             max_depth=7,
+                             silent=False
+                             )
 
 LGBMclf.fit(X_train_encoded4_scaled, y_train,
-            eval_set=[(X_train_encoded4_scaled, y_train), (X_valid_encoded4_scaled, y_valid)], 
-            eval_metric = 'auc',
-            early_stopping_rounds = 50, 
-            verbose = True)
+            eval_set=[(X_train_encoded4_scaled, y_train),
+                      (X_valid_encoded4_scaled, y_valid)],
+            eval_metric='auc',
+            early_stopping_rounds=50,
+            verbose=True)
 
 
 y_test_pred = LGBMclf.predict(X_test_encoded4_scaled).astype(int)
-y_pred = pd.Series(y_test_pred, index = test_id.values.squeeze())
+y_pred = pd.Series(y_test_pred, index=test_id.values.squeeze())
 y_pred.index.name = 'ticket_id'
 y_pred.name = 'compliance'
 y_pred.to_csv('y_pred_lgbm.csv')
 
 test_target = y_pred.to_frame()[['compliance']].groupby(['compliance']).size()
 
-fig = plt.figure('target', dpi = 150)
-sns.barplot(x = test_target.index, y = test_target.values, color = 'tomato')
+fig = plt.figure('target', dpi=150)
+sns.barplot(x=test_target.index, y=test_target.values, color='tomato')
 # plt.yscale('log')
 ax = plt.gca()
 ax.set_xlabel('Compliance')
@@ -521,7 +534,8 @@ ax.spines['right'].set_visible(False)
 
 y_valid_predict_proba_LGBMclf = LGBMclf.predict_proba(X_valid_encoded4_scaled)
 
-fpr_LGBMclf, tpr_LGBMclf, thresholds_LGBMclf  = roc_curve(y_valid, y_valid_predict_proba_LGBMclf[:,1])
+fpr_LGBMclf, tpr_LGBMclf, thresholds_LGBMclf = roc_curve(
+    y_valid, y_valid_predict_proba_LGBMclf[:, 1])
 auc_LGBMclf = auc(fpr_LGBMclf, tpr_LGBMclf)
 
 print('ROC-AUC scores:')
@@ -530,10 +544,11 @@ print('LGBM classifier: {:.3f}\n'.format(auc_LGBMclf))
 # LGBM classifier: 0.836
 
 
-plt.figure(figsize = (7, 7), dpi = 150)
+plt.figure(figsize=(7, 7), dpi=150)
 plt.xlim([-0.01, 1.00])
 plt.ylim([-0.01, 1.01])
-plt.plot(fpr_LGBMclf, tpr_LGBMclf, lw=3, label='LGBM classifier ROC curve (area = {:0.3f})'.format(auc_LGBMclf))
+plt.plot(fpr_LGBMclf, tpr_LGBMclf, lw=3,
+         label='LGBM classifier ROC curve (area = {:0.3f})'.format(auc_LGBMclf))
 plt.xlabel('False Positive Rate', fontsize=16)
 plt.ylabel('True Positive Rate', fontsize=16)
 plt.title('ROC curve', fontsize=16)
@@ -547,8 +562,10 @@ plt.tight_layout()
 # np.save('ROC/auc_LGBMclf', auc_LGBMclf)
 
 
-LGBMclf_feature_importances = pd.Series(LGBMclf.feature_importances_, index = original_cols).sort_values(ascending = False)
-LGBMclf_feature_importances = LGBMclf_feature_importances / LGBMclf_feature_importances.max()
+LGBMclf_feature_importances = pd.Series(
+    LGBMclf.feature_importances_, index=original_cols).sort_values(ascending=False)
+LGBMclf_feature_importances = LGBMclf_feature_importances / \
+    LGBMclf_feature_importances.max()
 
 # zip_code                                                      1.000000
 # ticket_issued_date_day_mean_encoded                           0.637136
@@ -577,9 +594,8 @@ LGBMclf_feature_importances = LGBMclf_feature_importances / LGBMclf_feature_impo
 # dtype: float64
 
 
-
-plt.figure(figsize = (12, 6), dpi = 150)
-LGBMclf_feature_importances[0:10].plot.barh(color = 'skyblue')
+plt.figure(figsize=(12, 6), dpi=150)
+LGBMclf_feature_importances[0:10].plot.barh(color='skyblue')
 plt.xlabel(None)
 plt.ylabel(None)
 ax = plt.gca()
@@ -589,32 +605,28 @@ plt.tight_layout()
 # plt.savefig('plots/LGBM_feature_imp', dpi = 150)
 
 
-
-
-
 plt.title('LGBM')
 # plt.savefig('LGBM_feature_importances', dpi = 300)
 
 
 """RandomizedSearchCV """
-from sklearn.model_selection import RandomizedSearchCV
 
-grid_values_LGBM = {'n_estimators': list(np.arange(100, 1100, 100)), 'learning_rate': [0.01], 'max_depth': list(np.arange(1, 26, 2)), 'max_bin': list(np.arange(100, 600, 100)), 'num_leaves': list(np.arange(100, 800, 100))}
+grid_values_LGBM = {'n_estimators': list(np.arange(100, 1100, 100)), 'learning_rate': [0.01], 'max_depth': list(
+    np.arange(1, 26, 2)), 'max_bin': list(np.arange(100, 600, 100)), 'num_leaves': list(np.arange(100, 800, 100))}
 
-fit_params_LGBM={"eval_metric" : "auc", 
-            "eval_set" : [[X_valid_encoded4_scaled, y_valid]]}
+fit_params_LGBM = {"eval_metric": "auc",
+                   "eval_set": [[X_valid_encoded4_scaled, y_valid]]}
 
-LGBMclf2 = lgb.LGBMClassifier(eval_metric="auc", n_jobs = 8)
+LGBMclf2 = lgb.LGBMClassifier(eval_metric="auc", n_jobs=8)
 
-LGBMclf_search = RandomizedSearchCV(LGBMclf2, param_distributions = grid_values_LGBM, scoring = 'roc_auc', cv = 3, verbose = 1, n_iter = 10)
+LGBMclf_search = RandomizedSearchCV(
+    LGBMclf2, param_distributions=grid_values_LGBM, scoring='roc_auc', cv=3, verbose=1, n_iter=10)
 LGBMclf_search.fit(X_train_encoded4_scaled, y_train, **fit_params_LGBM)
 print('Grid best parameters (roc_auc): ', LGBMclf_search.best_params_)
 # Grid best parameters (roc_auc):  {'n_estimators': 900, 'max_depth': 7, 'learning_rate': 0.01}
 
 
-#%% all ROC plots
-
-
+# %% all ROC plots
 
 
 fpr_knnclf = np.load('ROC/fpr_knnclf.npy')
@@ -641,15 +653,19 @@ tpr_nn = np.load('ROC/tpr_nn.npy')
 auc_nn = np.load('ROC/auc_nn.npy')
 
 
-
-plt.figure(figsize = (6, 6), dpi = 150)
+plt.figure(figsize=(6, 6), dpi=150)
 plt.xlim([-0.01, 1.00])
 plt.ylim([-0.01, 1.01])
-plt.plot(fpr_knnclf, tpr_knnclf, lw=2, label='KNN classifier (k = 7): area = {:0.3f}'.format(auc_knnclf), color='skyblue')
-plt.plot(fpr_XGBC_model, tpr_XGBC_model, lw=2, label='XGBoost classifier: area = {:0.3f}'.format(auc_XGBC_model), color='violet')
-plt.plot(fpr_RFC, tpr_RFC, lw=2, label='Random Forest classifier: area = {:0.3f}'.format(auc_RFC), color='forestgreen')
-plt.plot(fpr_LGBMclf, tpr_LGBMclf, lw=2, label='LightGBM classifier: area = {:0.3f}'.format(auc_LGBMclf), color='gold')
-plt.plot(fpr_nn, tpr_nn, lw=2, label='Neural Network: area = {:0.3f}'.format(auc_nn), color='dimgray')
+plt.plot(fpr_knnclf, tpr_knnclf, lw=2,
+         label='KNN classifier (k = 7): area = {:0.3f}'.format(auc_knnclf), color='skyblue')
+plt.plot(fpr_XGBC_model, tpr_XGBC_model, lw=2,
+         label='XGBoost classifier: area = {:0.3f}'.format(auc_XGBC_model), color='violet')
+plt.plot(fpr_RFC, tpr_RFC, lw=2, label='Random Forest classifier: area = {:0.3f}'.format(
+    auc_RFC), color='forestgreen')
+plt.plot(fpr_LGBMclf, tpr_LGBMclf, lw=2,
+         label='LightGBM classifier: area = {:0.3f}'.format(auc_LGBMclf), color='gold')
+plt.plot(fpr_nn, tpr_nn, lw=2, label='Neural Network: area = {:0.3f}'.format(
+    auc_nn), color='dimgray')
 plt.xlabel('False Positive Rate', fontsize=16)
 plt.ylabel('True Positive Rate', fontsize=16)
 plt.title('ROC curve', fontsize=16)
@@ -659,18 +675,13 @@ plt.tight_layout()
 # plt.savefig('plots/roc_all', dpi = 150)
 
 
-#%% PCA and truncated SVD
+# %% PCA and truncated SVD
 
 """
 try to use PCA and truncated SVD to see if performance improves
 KernelPCA and MDS cannot be used (memory error)
 """
 
-from sklearn.decomposition import PCA, TruncatedSVD
-from sklearn.preprocessing import MinMaxScaler
-
-from sklearn.metrics import roc_curve, auc
-from xgboost import XGBClassifier
 
 n_comp = np.arange(9, 25, 3)
 auc_pca = []
@@ -681,66 +692,71 @@ for n in n_comp:
 
     pca = PCA(n_components=n)
     pca.fit(X_train_encoded4_scaled)
-    
+
     X_train_pca = pca.transform(X_train_encoded4_scaled)
     X_valid_pca = pca.transform(X_valid_encoded4_scaled)
     X_test_pca = pca.transform(X_test_encoded4_scaled)
-    
+
     scaler_pca = MinMaxScaler()
     X_train_pca = scaler_pca.fit_transform(X_train_pca)
     X_valid_pca = scaler_pca.transform(X_valid_pca)
     X_test_pca = scaler_pca.transform(X_test_pca)
-    
-    
-    XGBC_model_pca = XGBClassifier(scale_pos_weight = (127891.-9247.)/9247., 
-                           eval_metric='auc', 
-                           n_estimators = 900, 
-                           max_depth = 7,
-                           learning_rate = 0.01,
-                           n_jobs = 8)
-    XGBC_model_pca.fit(X_train_pca, y_train, eval_set = [(X_train_pca, y_train), (X_valid_pca, y_valid)], early_stopping_rounds = 40)
-    y_valid_predict_proba_XGBC_model_pca = XGBC_model_pca.predict_proba(X_valid_pca)
-    
-    fpr_XGBC_model_pca, tpr_XGBC_model_pca, thresholds_XGBC_model_pca  = roc_curve(y_valid, y_valid_predict_proba_XGBC_model_pca[:,1])
+
+    XGBC_model_pca = XGBClassifier(scale_pos_weight=(127891.-9247.)/9247.,
+                                   eval_metric='auc',
+                                   n_estimators=900,
+                                   max_depth=7,
+                                   learning_rate=0.01,
+                                   n_jobs=8)
+    XGBC_model_pca.fit(X_train_pca, y_train, eval_set=[
+                       (X_train_pca, y_train), (X_valid_pca, y_valid)], early_stopping_rounds=40)
+    y_valid_predict_proba_XGBC_model_pca = XGBC_model_pca.predict_proba(
+        X_valid_pca)
+
+    fpr_XGBC_model_pca, tpr_XGBC_model_pca, thresholds_XGBC_model_pca = roc_curve(
+        y_valid, y_valid_predict_proba_XGBC_model_pca[:, 1])
     auc_XGBC_model_pca = auc(fpr_XGBC_model_pca, tpr_XGBC_model_pca)
-    
+
     auc_pca.append((n, auc_XGBC_model_pca))
-    
-    
-    
+
     TSVD = TruncatedSVD(n_components=n)
     TSVD.fit(X_train_encoded4_scaled)
-    
+
     X_train_TSVD = TSVD.transform(X_train_encoded4_scaled)
     X_valid_TSVD = TSVD.transform(X_valid_encoded4_scaled)
     X_test_TSVD = TSVD.transform(X_test_encoded4_scaled)
-    
+
     scaler_TSVD = MinMaxScaler()
     X_train_TSVD = scaler_TSVD.fit_transform(X_train_TSVD)
     X_valid_TSVD = scaler_TSVD.transform(X_valid_TSVD)
     X_test_TSVD = scaler_TSVD.transform(X_test_TSVD)
-    
-    XGBC_model_TVSD = XGBClassifier(scale_pos_weight = (127891.-9247.)/9247., 
-                           eval_metric='auc', 
-                           n_estimators = 900, 
-                           max_depth = 7,
-                           learning_rate = 0.01,
-                           n_jobs = 8)
-    XGBC_model_TVSD.fit(X_train_TSVD, y_train, eval_set = [(X_train_TSVD, y_train), (X_valid_TSVD, y_valid)], early_stopping_rounds = 40)
-    
-    
-    y_valid_predict_proba_XGBC_model_TVSD = XGBC_model_TVSD.predict_proba(X_valid_TSVD)
-    
-    fpr_XGBC_model_TVSD, tpr_XGBC_model_TVSD, thresholds_XGBC_model_TVSD  = roc_curve(y_valid, y_valid_predict_proba_XGBC_model_TVSD[:,1])
+
+    XGBC_model_TVSD = XGBClassifier(scale_pos_weight=(127891.-9247.)/9247.,
+                                    eval_metric='auc',
+                                    n_estimators=900,
+                                    max_depth=7,
+                                    learning_rate=0.01,
+                                    n_jobs=8)
+    XGBC_model_TVSD.fit(X_train_TSVD, y_train, eval_set=[
+                        (X_train_TSVD, y_train), (X_valid_TSVD, y_valid)], early_stopping_rounds=40)
+
+    y_valid_predict_proba_XGBC_model_TVSD = XGBC_model_TVSD.predict_proba(
+        X_valid_TSVD)
+
+    fpr_XGBC_model_TVSD, tpr_XGBC_model_TVSD, thresholds_XGBC_model_TVSD = roc_curve(
+        y_valid, y_valid_predict_proba_XGBC_model_TVSD[:, 1])
     auc_XGBC_model_TVSD = auc(fpr_XGBC_model_TVSD, tpr_XGBC_model_TVSD)
-    
+
     auc_TVSD.append((n, auc_XGBC_model_TVSD))
 
 
 plt.figure(dpi=150)
-plt.plot([auc[0] for auc in auc_pca], [auc[1] for auc in auc_pca], marker=".", markersize = 20, label = 'PCA', color = 'skyblue')
-plt.plot([auc[0] for auc in auc_TVSD], [auc[1] for auc in auc_TVSD], marker=".", markersize = 20, label = 'TruncatedSVD', color = 'tomato')
-plt.plot([9,25], [0.8334866605600506, 0.8334866605600506], '--', color = 'grey', label = 'without dimensionality reduction')
+plt.plot([auc[0] for auc in auc_pca], [auc[1] for auc in auc_pca],
+         marker=".", markersize=20, label='PCA', color='skyblue')
+plt.plot([auc[0] for auc in auc_TVSD], [auc[1] for auc in auc_TVSD],
+         marker=".", markersize=20, label='TruncatedSVD', color='tomato')
+plt.plot([9, 25], [0.8334866605600506, 0.8334866605600506], '--',
+         color='grey', label='without dimensionality reduction')
 plt.xlabel('n_components')
 plt.xticks(np.arange(9, 25, 3))
 plt.ylabel('AUC')
@@ -751,7 +767,6 @@ auc_pca
 auc_TVSD
 
 
-
 """
 TVSD with 12 features
 # XGBoost classifier: TSVD 0.781
@@ -760,24 +775,21 @@ PCA with 12 features
 """
 
 
-XGBC_model = XGBClassifier(scale_pos_weight = (127891.-9247.)/9247., 
-                           eval_metric='auc', 
-                           n_estimators = 900, 
-                           max_depth = 7,
-                           learning_rate = 0.01,
-                           n_jobs = 8)
-XGBC_model.fit(X_train_encoded4_scaled, y_train, eval_set = [(X_train_encoded4_scaled, y_train), (X_valid_encoded4_scaled, y_valid)], early_stopping_rounds = 40)
+XGBC_model = XGBClassifier(scale_pos_weight=(127891.-9247.)/9247.,
+                           eval_metric='auc',
+                           n_estimators=900,
+                           max_depth=7,
+                           learning_rate=0.01,
+                           n_jobs=8)
+XGBC_model.fit(X_train_encoded4_scaled, y_train, eval_set=[
+               (X_train_encoded4_scaled, y_train), (X_valid_encoded4_scaled, y_valid)], early_stopping_rounds=40)
 
 
-y_valid_predict_proba_XGBC_model = XGBC_model.predict_proba(X_valid_encoded4_scaled)
+y_valid_predict_proba_XGBC_model = XGBC_model.predict_proba(
+    X_valid_encoded4_scaled)
 
-fpr_XGBC_model, tpr_XGBC_model, thresholds_XGBC_model  = roc_curve(y_valid, y_valid_predict_proba_XGBC_model[:,1])
+fpr_XGBC_model, tpr_XGBC_model, thresholds_XGBC_model = roc_curve(
+    y_valid, y_valid_predict_proba_XGBC_model[:, 1])
 auc_XGBC_model = auc(fpr_XGBC_model, tpr_XGBC_model)
 print(auc_XGBC_model)
 # 0.8334866605600506
-
-
-
-
-
-

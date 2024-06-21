@@ -39,14 +39,11 @@ For the resume dataset, we:
 
 """
 
-#%% Preamble
+# %% Preamble
 
-import pandas as pd
 # Make the output look better
-pd.set_option('display.max_rows', 500)
-pd.set_option('display.max_columns', 500)
-# pd.set_option('display.width', 1000)
-pd.set_option('display.max_colwidth', None)
+from transformers import DistilBertTokenizerFast  # , TFDistilBertModel
+import pandas as pd
 import numpy as np
 import seaborn as sn
 import matplotlib.pyplot as plt
@@ -55,12 +52,20 @@ import random
 import logging
 import re
 import tensorflow as tf
-
-
 import os
+import pickle
+from pickle import load
+from seqeval.metrics import classification_report
+from transformers import TFDistilBertForTokenClassification
+pd.set_option('display.max_rows', 500)
+pd.set_option('display.max_columns', 500)
+# pd.set_option('display.width', 1000)
+pd.set_option('display.max_colwidth', None)
+
+
 os.chdir(r'C:\Users\Cedric Yu\Desktop\Works\10_nlp_named_entity_recognition')
 
-#%% tensorflow
+# %% tensorflow
 
 # import tensorflow as tf
 # from keras.models import Model
@@ -74,7 +79,7 @@ os.chdir(r'C:\Users\Cedric Yu\Desktop\Works\10_nlp_named_entity_recognition')
 # np.random.seed(1)
 
 
-#%% [labeled] datasets: functions for pre-processing and tokenisation
+# %% [labeled] datasets: functions for pre-processing and tokenisation
 
 """
 Our labeled resume dataset is stored in 'resume/ner.json'. Each line is an instance. 
@@ -100,13 +105,14 @@ convert json into spaCy format: a list of (content, {"entities" : entities}), wh
 # then, note that in 'text' of each annotation, there are trailing spaces. Correct (start, end) by excluding the trailing spaces in 'text'
 """
 
+
 def convert_dataturks_to_spacy(dataturks_JSON_FilePath):
     try:
         training_data = []
-        lines=[]
+        lines = []
         with open(dataturks_JSON_FilePath, 'r', encoding="utf8") as f:
             lines = f.readlines()
-        
+
         # each line is one instance
         for line in lines:
             data = json.loads(line)
@@ -123,25 +129,28 @@ def convert_dataturks_to_spacy(dataturks_JSON_FilePath):
                     # handle both [list of labels] or [a single label]
                     if not isinstance(labels, list):
                         labels = [labels]
-                    
+
                     # in 'point', strip left and right whitespaces in 'text' and update 'start' and 'end' positions ignoring the spaces
                     for label in labels:
                         point_start = point['start']
                         point_end = point['end']
                         point_text = point['text']
-                        
-                        lstrip_diff = len(point_text) - len(point_text.lstrip())
-                        rstrip_diff = len(point_text) - len(point_text.rstrip())
+
+                        lstrip_diff = len(point_text) - \
+                            len(point_text.lstrip())
+                        rstrip_diff = len(point_text) - \
+                            len(point_text.rstrip())
                         if lstrip_diff != 0:
                             point_start = point_start + lstrip_diff
                         if rstrip_diff != 0:
                             point_end = point_end - rstrip_diff
-                        entities.append((point_start, point_end + 1 , label))
-            training_data.append((content, {"entities" : entities}))
+                        entities.append((point_start, point_end + 1, label))
+            training_data.append((content, {"entities": entities}))
         return training_data
-    
+
     except Exception as e:
-        logging.exception("Unable to process " + dataturks_JSON_FilePath + "\n" + "error = " + str(e))
+        logging.exception("Unable to process " +
+                          dataturks_JSON_FilePath + "\n" + "error = " + str(e))
         return None
 
 
@@ -150,6 +159,7 @@ def convert_dataturks_to_spacy(dataturks_JSON_FilePath):
 For [labeled] datasets:
 # we have corrected (start, end) by disregarding trailing spaces from 'text' of each entity. now we correct (start, end) of each entity by checking that they do not correspond to trailing whitespaces in 'content'
 """
+
 
 def trim_entity_spans(data: list) -> list:
     """Removes leading and trailing white spaces from entity spans.
@@ -177,7 +187,7 @@ def trim_entity_spans(data: list) -> list:
                 valid_end -= 1
             valid_entities.append([valid_start, valid_end, label])
         cleaned_data.append([content, {'entities': valid_entities}])
-    return cleaned_data  
+    return cleaned_data
 
 
 """
@@ -187,19 +197,21 @@ For [labeled] datasets:
 # assign corresponding labels (entities) to tokens, or 'Empty' if no matching label
 """
 
+
 def tokentize_dataset_tags(data):
     content_tokens = []
     labels = []
-    
+
     for m in range(len(data)):
-        
+
         content = data[m][0]
         entitiesm = data[m][1]
-        
+
         # split content by '[\s]+' or '\W', discard empty strings
-        token_split = list(filter(None, re.split(r'(\W\b|\b\W|[\s]+)', content)))
+        token_split = list(
+            filter(None, re.split(r'(\W\b|\b\W|[\s]+)', content)))
         # content_spaces = [(m.start(0), m.end(0)) for m in re.finditer(r'[\s]+', content)]
-        
+
         token_index = []
         token_split_no_space = []
         char_index = 0
@@ -210,25 +222,20 @@ def tokentize_dataset_tags(data):
             if len(re.findall(r'[\s]+', token)) != 1:
                 token_index.append((token, start, end))
                 token_split_no_space.append(token)
-            
+
             char_index = end
-        
+
         # assign corresponding labels (entities) to tokens, or 'Empty' if no matching label
         emptyList = ["Empty"] * len(token_index)
         for j, token in enumerate(token_index):
             for entity in entitiesm['entities']:
                 if (token[1] >= entity[0]) & (token[2] <= entity[1]):
                     emptyList[j] = entity[2]
-        
-            
+
         content_tokens.append(token_split_no_space)
         labels.append(emptyList)
-        
+
     return content_tokens, labels
-
-
-
-
 
 
 """example (first training instance with np random seed(1) given below"""
@@ -282,7 +289,7 @@ print(list(zip(token_split_no_space0[0], labels0[0])))
 # [('Kowsick', 'Name'), ('Somasundaram', 'Name'), ('Certified', 'Designation'), ('Network', 'Designation'), ('Associate', 'Designation'), ('Training', 'Designation'), ('Program', 'Designation'), ('Erode', 'Location'), (',', 'Empty'), ('Tamil', 'Empty'), ('Nadu', 'Empty'), ('-', 'Empty'), ('Email', 'Empty'), ('me', 'Empty'), ('on', 'Empty'), ('Indeed', 'Empty'), (':', 'Empty'), ('indeed', 'Email Address'), ('.', 'Email Address'), ('com', 'Email Address'), ('/', 'Email Address'), ('r', 'Email Address'), ('/', 'Email Address'), ('Kowsick', 'Email Address'), ('-', 'Email Address'), ('Somasundaram', 'Email Address'), ('/', 'Email Address'), ('3bd9e5de546cc3c8', 'Email Address'), ('Bachelor', 'Empty'), ('of', 'Empty'), ('computer', 'Empty'), ('science', 'Empty'), ('graduate', 'Empty'), ('seeking', 'Empty'), ('opportunities', 'Empty'), ('in', 'Empty'), ('the', 'Empty'), ('field', 'Empty'), ('of', 'Empty'), ('ITIS', 'Empty'), ('to', 'Empty'), ('contribute', 'Empty'), ('to', 'Empty'), ('corporate', 'Empty'), ('goals', 'Empty'), ('and', 'Empty'), ('objectives', 'Empty'), ('.', 'Empty'), ('Easily', 'Empty'), ('adapt', 'Empty'), ('to', 'Empty'), ('changes', 'Empty'), (',', 'Empty'), ('with', 'Empty'), ('eagerness', 'Empty'), ('toward', 'Empty'), ('learning', 'Empty'), ('and', 'Empty'), ('expanding', 'Empty'), ('capabilities', 'Empty'), ('.', 'Empty'), ('EXPERIENCE', 'Empty'), (':', 'Empty'), ('-', 'Empty'), ('WORK', 'Empty'), ('EXPERIENCE', 'Empty'), ('Certified', 'Designation'), ('Network', 'Designation'), ('Associate', 'Designation'), ('Training', 'Designation'), ('Program', 'Designation'), ('Cisco', 'Companies worked at'), ('-', 'Empty'), ('July', 'Empty'), ('2013', 'Empty'), ('to', 'Empty'), ('October', 'Empty'), ('2013', 'Empty'), ('•', 'Empty'), ('Workshop', 'Empty'), ('on', 'Empty'), ('computer', 'Empty'), ('Hardware', 'Empty'), ('&', 'Empty'), ('Software', 'Empty'), ('.', 'Empty'), ('•', 'Empty'), ('Workshop', 'Empty'), ('on', 'Empty'), ('Web', 'Empty'), ('development', 'Empty'), ('.', 'Empty'), ('EDUCATION', 'Empty'), ('Bachelor', 'Degree'), ('of', 'Degree'), ('computer', 'Degree'), ('science', 'Degree'), ('in', 'Degree'), ('computer', 'Degree'), ('science', 'Degree'), ('inDR', 'College Name'), ('N', 'College Name'), ('.', 'College Name'), ('G', 'College Name'), ('.', 'College Name'), ('P', 'College Name'), ('ARTS', 'College Name'), ('AND', 'College Name'), ('SCIENCE', 'College Name'), ('COLLEGE', 'College Name'), ('-', 'Empty'), ('Coimbatore', 'Empty'), (',', 'Empty'), ('Tamil', 'Empty'), ('Nadu', 'Empty'), ('SKILLS', 'Empty'), ('DHCP', 'Skills'), ('(', 'Skills'), ('Less', 'Skills'), ('than', 'Skills'), ('1', 'Skills'), ('year', 'Skills'), (')', 'Skills'), (',', 'Skills'), ('DNS', 'Skills'), ('(', 'Skills'), ('Less', 'Skills'), ('than', 'Skills'), ('1', 'Skills'), ('year', 'Skills'), (')', 'Skills'), (',', 'Skills'), ('EXCHANGE', 'Skills'), ('(', 'Skills'), ('Less', 'Skills'), ('than', 'Skills'), ('1', 'Skills'), ('year', 'Skills'), (')', 'Skills'), (',', 'Skills'), ('exchange', 'Skills'), ('(', 'Skills'), ('Less', 'Skills'), ('than', 'Skills'), ('1', 'Skills'), ('year', 'Skills'), (')', 'Skills'), (',', 'Skills'), ('LAN', 'Skills'), ('(', 'Skills'), ('Less', 'Skills'), ('than', 'Skills'), ('1', 'Skills'), ('year', 'Skills'), (')', 'Skills'), ('ADDITIONAL', 'Skills'), ('INFORMATION', 'Skills'), ('SKILLS', 'Skills'), (':', 'Skills'), ('-', 'Skills'), ('•', 'Skills'), ('Messaging', 'Skills'), (':', 'Skills'), ('MS', 'Skills'), ('exchange', 'Skills'), (',', 'Skills'), ('Lotus', 'Skills'), ('client', 'Skills'), ('and', 'Skills'), ('MS', 'Skills'), ('outlook', 'Skills'), ('issue', 'Skills'), ('coordination', 'Skills'), ('to', 'Skills'), ('user', 'Skills'), ('.', 'Skills'), ('•', 'Skills'), ('Users', 'Skills'), ('/', 'Skills'), ('Share', 'Skills'), ('folders', 'Skills'), ('creation', 'Skills'), ('and', 'Skills'), ('permission', 'Skills'), ('assigning', 'Skills'), ('.', 'Skills'), ('•', 'Skills'), ('Networking', 'Skills'), (':', 'Skills'), ('TCP', 'Skills'), ('/', 'Skills'), ('IP', 'Skills'), (',', 'Skills'), ('DNS', 'Skills'), (',', 'Skills'), ('DHCP', 'Skills'), (',', 'Skills'), ('and', 'Skills'), ('LAN', 'Skills'), ('/', 'Skills'), ('WAN', 'Skills'), ('.', 'Skills'), ('•', 'Skills'), ('Monthly', 'Skills'), ('patching', 'Skills'), ('update', 'Skills'), ('activity', 'Skills'), ('and', 'Skills'), ('server', 'Skills'), ('owner', 'Skills'), ('approval', 'Skills'), ('/', 'Skills'), ('RFC', 'Skills'), ('follow', 'Skills'), ('-', 'Skills'), ('ups', 'Skills'), ('.', 'Skills'), ('https', 'Empty'), (':', 'Empty'), ('/', 'Empty'), ('/', 'Empty'), ('www', 'Empty'), ('.', 'Empty'), ('indeed', 'Empty'), ('.', 'Empty'), ('com', 'Empty'), ('/', 'Empty'), ('r', 'Empty'), ('/', 'Empty'), ('Kowsick', 'Empty'), ('-', 'Empty'), ('Somasundaram', 'Empty'), ('/', 'Empty'), ('3bd9e5de546cc3c8', 'Empty'), ('?', 'Empty'), ('isid', 'Empty'), ('=', 'Empty'), ('rex', 'Empty'), ('-', 'Empty'), ('download', 'Empty'), ('&', 'Empty'), ('ikw', 'Empty'), ('=', 'Empty'), ('download', 'Empty'), ('-', 'Empty'), ('top', 'Empty'), ('&', 'Empty'), ('co', 'Empty'), ('=', 'Empty'), ('IN', 'Empty'), ('https', 'Empty'), (':', 'Empty'), ('/', 'Empty'), ('/', 'Empty'), ('www', 'Empty'), ('.', 'Empty'), ('indeed', 'Empty'), ('.', 'Empty'), ('com', 'Empty'), ('/', 'Empty'), ('r', 'Empty'), ('/', 'Empty'), ('Kowsick', 'Empty'), ('-', 'Empty'), ('Somasundaram', 'Empty'), ('/', 'Empty'), ('3bd9e5de546cc3c8', 'Empty'), ('?', 'Empty'), ('isid', 'Empty'), ('=', 'Empty'), ('rex', 'Empty'), ('-', 'Empty'), ('download', 'Empty'), ('&', 'Empty'), ('ikw', 'Empty'), ('=', 'Empty'), ('download', 'Empty'), ('-', 'Empty'), ('top', 'Empty'), ('&', 'Empty'), ('co', 'Empty'), ('=', 'Empty'), ('IN', 'Empty')]
 
 
-#%% load labeled dataset. train-validation split and pre-processing
+# %% load labeled dataset. train-validation split and pre-processing
 
 data = trim_entity_spans(convert_dataturks_to_spacy("resume/ner.json"))
 len(data)
@@ -292,7 +299,8 @@ len(data)
 """train-validation split: 7-3"""
 np.random.seed(1)
 train_ind = [np.random.randint(len(data)) for i in range(int(len(data)*0.7))]
-valid_ind = [np.random.randint(len(data)) for i in range(len(data) - int(len(data)*0.7))]
+valid_ind = [np.random.randint(len(data))
+             for i in range(len(data) - int(len(data)*0.7))]
 
 data_train = [data[i] for i in train_ind]
 data_valid = [data[i] for i in valid_ind]
@@ -304,19 +312,20 @@ token_split_no_space_train, labels_train = tokentize_dataset_tags(data_train)
 token_split_no_space_valid, labels_valid = tokentize_dataset_tags(data_valid)
 
 
-#%% Resume: unlabeled dataset tokenisation
+# %% Resume: unlabeled dataset tokenisation
 
 """
 Assume our unlabeled test set is a line-separated json file
 """
 
+
 def convert_dataturks_to_spacy_unlabeled(dataturks_JSON_FilePath):
     try:
         test_data = []
-        lines=[]
+        lines = []
         with open(dataturks_JSON_FilePath, 'r', encoding="utf8") as f:
             lines = f.readlines()
-        
+
         # each line is one instance
         for line in lines:
             data = json.loads(line)
@@ -324,29 +333,29 @@ def convert_dataturks_to_spacy_unlabeled(dataturks_JSON_FilePath):
             content = data['content'].replace("\n", " ")
             test_data.append(content)
         return test_data
-    
+
     except Exception as e:
-        logging.exception("Unable to process " + dataturks_JSON_FilePath + "\n" + "error = " + str(e))
+        logging.exception("Unable to process " +
+                          dataturks_JSON_FilePath + "\n" + "error = " + str(e))
         return None
 # returns a list of strings
 
 
-
 def tokentize_dataset(data):
-    
     """
     data is a list of m strings with '\n' replaced by ' '
     """
-    
+
     content_tokens = []
-    
+
     for m in range(len(data)):
-        
+
         content = data[m]
-        
-        token_split = list(filter(None, re.split(r'(\W\b|\b\W|[\s]+)', content)))
+
+        token_split = list(
+            filter(None, re.split(r'(\W\b|\b\W|[\s]+)', content)))
         # content_spaces = [(m.start(0), m.end(0)) for m in re.finditer(r'[\s]+', content)]
-        
+
         token_index = []
         token_split_no_space = []
         char_index = 0
@@ -356,15 +365,15 @@ def tokentize_dataset(data):
             if len(re.findall(r'[\s]+', token)) != 1:
                 token_index.append((token, start, end))
                 token_split_no_space.append(token)
-            
+
             char_index = end
-        
+
         content_tokens.append(token_split_no_space)
-        
+
     return content_tokens
 
 
-#%% tags from labeled training set
+# %% tags from labeled training set
 
 """generate a list of unique tags to which the named-entities will be matched"""
 """create id for each unique tag and dictionary between tags and ids"""
@@ -405,29 +414,27 @@ id2tag = {id: tag for tag, id in tag2id.items()}
 
 """save to files"""
 
-import pickle
 
-# create a binary pickle file 
-f = open("tag2id.pkl","wb")
+# create a binary pickle file
+f = open("tag2id.pkl", "wb")
 # write the python object to pickle file
-pickle.dump(tag2id,f)
+pickle.dump(tag2id, f)
 # close file
 f.close()
 
-# create a binary pickle file 
-f = open("id2tag.pkl","wb")
+# create a binary pickle file
+f = open("id2tag.pkl", "wb")
 # write the python object (dict) to pickle file
-pickle.dump(id2tag,f)
+pickle.dump(id2tag, f)
 # close file
 f.close()
 
 
-from pickle import load
 tag2id = load(open('tag2id.pkl', 'rb'))
 id2tag = load(open('id2tag.pkl', 'rb'))
 
 
-#%% convert labels to ids (aka tags)
+# %% convert labels to ids (aka tags)
 
 # from tensorflow.keras.preprocessing.sequence import pad_sequences
 # MAX_LEN = 512
@@ -444,7 +451,7 @@ tags_valid = [[tag2id.get(l) for l in lab] for lab in labels_valid]
 # they will be further tokenised and padded by Huggingface tokenizer
 
 
-#%% tokenisation and label (tag id) alignment with the huggingface library
+# %% tokenisation and label (tag id) alignment with the huggingface library
 
 """
 Before feeding the texts to a Transformer model, we will need to tokenize our input using a huggingface Transformer tokenizer. 
@@ -520,11 +527,13 @@ text0 = data[37][0]
 
 # !!!
 
-from transformers import DistilBertTokenizerFast #, TFDistilBertModel
-tokenizer = DistilBertTokenizerFast.from_pretrained('pre-trained-transformer-distilbert-base-cased/')
+tokenizer = DistilBertTokenizerFast.from_pretrained(
+    'pre-trained-transformer-distilbert-base-cased/')
 
 
 label_all_tokens = True
+
+
 def tokenize_and_align_labels(tokenizer, examples, tags):
     """
     Arguments
@@ -532,13 +541,14 @@ def tokenize_and_align_labels(tokenizer, examples, tags):
     examples: [pre-processed tokenised text] from dataset (with '\n' replaced by ' '), len = batch size
     tags: list of tag ids, len = batch size
     """
-    
+
     """# 1. tokenise raw input with huggingface tokeniser"""
-    tokenized_inputs = tokenizer(examples, truncation=True, is_split_into_words=True, padding='max_length', max_length=512)
+    tokenized_inputs = tokenizer(
+        examples, truncation=True, is_split_into_words=True, padding='max_length', max_length=512)
     # truncation=True: cuts sequences that exceed the maximum size allowed by our model
     # is_split_into_words: Whether or not the input is already pre-tokenized (e.g., split into words). If set to True, the tokenizer assumes the input is already split into words (for instance, by splitting it on whitespace) which it will tokenize. This is useful for NER or token classification.
     # tokenized_inputs is a dictionary with 'input_ids' a list of token ids (of the huggingface tokeniser) for the tokenised words in the input 'examples', and 'attention_mask' a padding mask (0 for padded words and 1 otherwise)
-    
+
     """# 2. assign the same the tag id for all sub-words in a word, store them in labels"""
     labels = []
     # recall tags is the list of tag id for each word of input 'examples' constructed from our labeled dataset, with whitespaces stripped
@@ -546,7 +556,7 @@ def tokenize_and_align_labels(tokenizer, examples, tags):
     for i, label in enumerate(tags):
         word_ids = tokenized_inputs.word_ids(batch_index=i)
         # word_ids: a list that assigns, in ascending order, the same word id for all sub-words of the same original word aplit by the tokenizer
-        
+
         previous_word_idx = None
         label_ids = []
         for word_idx in word_ids:
@@ -566,19 +576,22 @@ def tokenize_and_align_labels(tokenizer, examples, tags):
     tokenized_inputs["labels"] = labels
     return tokenized_inputs
 
+
 """
 # so now we have two columns: 'input_ids' that are the token ids for the sub-words of words split by huggingface tokenizer, 'labels' that are the corresponding tag ids belonging to the same words from the labeled dataset
 # these two columns are used to further train our model
 """
 
-tokenized_inputs_train = tokenize_and_align_labels(tokenizer, token_split_no_space_train, tags_train)
+tokenized_inputs_train = tokenize_and_align_labels(
+    tokenizer, token_split_no_space_train, tags_train)
 train_dataset = tf.data.Dataset.from_tensor_slices((
     tokenized_inputs_train['input_ids'],
     tokenized_inputs_train['labels']
 ))
 X_train, y_train = tokenized_inputs_train['input_ids'], tokenized_inputs_train['labels']
 
-tokenized_inputs_valid = tokenize_and_align_labels(tokenizer, token_split_no_space_valid, tags_valid)
+tokenized_inputs_valid = tokenize_and_align_labels(
+    tokenizer, token_split_no_space_valid, tags_valid)
 valid_dataset = tf.data.Dataset.from_tensor_slices((
     tokenized_inputs_valid['input_ids'],
     tokenized_inputs_valid['labels']
@@ -586,30 +599,30 @@ valid_dataset = tf.data.Dataset.from_tensor_slices((
 X_valid, y_valid = tokenized_inputs_valid['input_ids'], tokenized_inputs_valid['labels']
 
 
-#%% optimisation
+# %% optimisation
 
 """
 feed data into a pretrained 🤗 model. optimize a DistilBERT model, which matches the tokenizer used to preprocess your data
 """
 
 
-from transformers import TFDistilBertForTokenClassification
-
-model = TFDistilBertForTokenClassification.from_pretrained('pre-trained-transformer-distilbert-base-cased/', num_labels=len(unique_tags))
+model = TFDistilBertForTokenClassification.from_pretrained(
+    'pre-trained-transformer-distilbert-base-cased/', num_labels=len(unique_tags))
 
 
 # import tensorflow_addons as tfa
 # tfa.metrics.F1Score(num_classes=len(unique_tags), threshold = 0.5)
 
 callback = tf.keras.callbacks.EarlyStopping(
-    monitor='val_accuracy', mode = 'max', patience=30, min_delta = 0.00001, restore_best_weights=True)
+    monitor='val_accuracy', mode='max', patience=30, min_delta=0.00001, restore_best_weights=True)
 
 optimizer = tf.keras.optimizers.Adam(learning_rate=5e-6)
-model.compile(optimizer=optimizer, loss=model.compute_loss, metrics=['accuracy']) # can also use any keras loss fn
+model.compile(optimizer=optimizer, loss=model.compute_loss, metrics=[
+              'accuracy'])  # can also use any keras loss fn
 # if you get GPU 'Resource exhausted: failed to allocate memory', reduce batch size
 history = model.fit(X_train, y_train,
-                    validation_data = (X_valid, y_valid), 
-                    epochs = 200, callbacks = [callback], batch_size = 4)
+                    validation_data=(X_valid, y_valid),
+                    epochs=200, callbacks=[callback], batch_size=4)
 
 # Epoch 108/200
 # 39/39 [==============================] - 7s 187ms/step - loss: 0.0066 - accuracy: 0.8575 - val_loss: 0.3992 - val_accuracy: 0.7552
@@ -624,13 +637,11 @@ model.evaluate(X_valid, y_valid)
 # [0.3139658272266388, 0.7595880627632141]
 
 
-
-
 history_df = pd.DataFrame(history.history)
 history_df.columns
 
 
-fig = plt.figure(dpi = 150)
+fig = plt.figure(dpi=150)
 plt.plot(history.history['loss'], color='red', label='loss')
 plt.plot(history.history['val_loss'], color='blue', label='val_loss')
 ax = plt.gca()
@@ -644,7 +655,7 @@ ax.spines['right'].set_visible(False)
 plt.legend()
 # plt.savefig('transformer_loss', dpi = 150)
 
-fig = plt.figure(dpi = 150)
+fig = plt.figure(dpi=150)
 plt.plot(history.history['accuracy'], color='red', label='accuracy')
 plt.plot(history.history['val_accuracy'], color='blue', label='val_accuracy')
 ax = plt.gca()
@@ -659,7 +670,7 @@ plt.legend()
 # plt.savefig('transformer_accuracy', dpi = 150)
 
 
-#%% evaluate F1 score for the labeled datasets
+# %% evaluate F1 score for the labeled datasets
 
 # specify labeled dataset here
 tags_labeled = tags_valid
@@ -672,17 +683,20 @@ batch_size_labeled = len(tokenized_inputs_labeled['input_ids'])
 X_labeled, y_labeled = tokenized_inputs_labeled['input_ids'], tokenized_inputs_labeled['labels']
 
 
-word_ids_labeled = np.array([tokenized_inputs_labeled.word_ids(i) for i in range(len(tokenized_inputs_labeled['input_ids']))])
+word_ids_labeled = np.array([tokenized_inputs_labeled.word_ids(
+    i) for i in range(len(tokenized_inputs_labeled['input_ids']))])
 
-word_ids_labeled[:,0] = -1
+word_ids_labeled[:, 0] = -1
 # array([[-1, 0, 0, ..., None, None, None],
 #        [-1, 0, 0, ..., None, None, None]], dtype=object)
-word_ids_labeled = np.where(word_ids_labeled == None, 4096, word_ids_labeled)  # use 4096 because 4096 > 512 = MAX_LEN
+# use 4096 because 4096 > 512 = MAX_LEN
+word_ids_labeled = np.where(word_ids_labeled == None, 4096, word_ids_labeled)
 
 # from word_ids_labeled, we identify the location of the start of each word
 word_ids_unique_index_labeled = []
 for i in range(batch_size_labeled):
-    start_of_word_locations = np.unique(word_ids_labeled[i], return_index = True)[1]
+    start_of_word_locations = np.unique(
+        word_ids_labeled[i], return_index=True)[1]
     # if the last word is the padding token, drop it
     if word_ids_labeled[i][start_of_word_locations[-1]] == 4096:
         start_of_word_locations = start_of_word_locations[:-1]
@@ -694,9 +708,10 @@ prediction_labeled = model.predict(X_labeled)
 # apply softmax to the precited logits and take the most probable label
 pred_tags_labeled = []
 soft_labeled = tf.nn.softmax(prediction_labeled.logits)
-pred_tag_ids_labeled = tf.math.argmax(soft_labeled, axis = -1).numpy()
+pred_tag_ids_labeled = tf.math.argmax(soft_labeled, axis=-1).numpy()
 for i in range(batch_size_labeled):
-    pred_tags_labeled.append([ id2tag[pred_tag_ids_labeled[i,j]] for j in range(pred_tag_ids_labeled.shape[1])])
+    pred_tags_labeled.append([id2tag[pred_tag_ids_labeled[i, j]]
+                             for j in range(pred_tag_ids_labeled.shape[1])])
 pred_tags_labeled = np.array(pred_tags_labeled)
 
 # from the predicted sub-word labels, for each word take the label of the first sub-word, and map from tag ids to the tags
@@ -705,14 +720,17 @@ for i in range(batch_size_labeled):
     pred_tags_i_labeled = pred_tags_labeled[i]
     # remove the first tag corresponding to <start of sentence>
     word_ids_unique_index_i = word_ids_unique_index_labeled[i][1:]
-    pred_tags_words_labeled.append([pred_tags_i_labeled[ind] for ind in word_ids_unique_index_i])
+    pred_tags_words_labeled.append(
+        [pred_tags_i_labeled[ind] for ind in word_ids_unique_index_i])
 
-pred_tags_words_labeled = pd.Series(pred_tags_words_labeled, name = 'predicted tags')
+pred_tags_words_labeled = pd.Series(
+    pred_tags_words_labeled, name='predicted tags')
 y_pred_labeled = pred_tags_words_labeled.to_list()
 
 
 # some instances are truncated upon tokenisation by Bert
-truncated_instances = [i for i, pred in enumerate(y_pred_labeled) if len(pred) != len(labels_labeled[i])]
+truncated_instances = [i for i, pred in enumerate(
+    y_pred_labeled) if len(pred) != len(labels_labeled[i])]
 
 # len(truncated_instances)
 # Out[98]: 105
@@ -735,55 +753,51 @@ X_valid, y_valid = tokenized_inputs_valid['input_ids'], tokenized_inputs_valid['
 tokenized_inputs_valid['word_ids']
 
 
-
-
 # https://huggingface.co/metrics/seqeval
 # https://pypi.org/project/seqeval/
 
 # compute label-wise precision, recall and f1 scores, [after] re-combining the sub-word tokens
-from seqeval.metrics import classification_report
 print(classification_report(labels_labeled, y_pred_labeled))
 
 # training set
 #                     precision    recall  f1-score   support
-# 
- #                Name      1.00      1.00      1.00       155
- # Years of Experience      1.00      1.00      1.00        33
- #              Degree      0.76      0.81      0.78       105
- #         Designation      0.97      0.96      0.97       284
- #              Skills      0.97      0.99      0.98      2128
- #       Email Address      0.99      1.00      0.99      1804
- #               Empty      1.00      1.00      1.00     42167
- #            Location      0.99      0.99      0.99       239
- #        College Name      0.77      0.87      0.82       101
- # Companies worked at      0.97      0.96      0.97       336
- #     Graduation Year      0.93      0.67      0.78        82
+#
+#                Name      1.00      1.00      1.00       155
+# Years of Experience      1.00      1.00      1.00        33
+#              Degree      0.76      0.81      0.78       105
+#         Designation      0.97      0.96      0.97       284
+#              Skills      0.97      0.99      0.98      2128
+#       Email Address      0.99      1.00      0.99      1804
+#               Empty      1.00      1.00      1.00     42167
+#            Location      0.99      0.99      0.99       239
+#        College Name      0.77      0.87      0.82       101
+# Companies worked at      0.97      0.96      0.97       336
+#     Graduation Year      0.93      0.67      0.78        82
 
- #          micro avg       0.99      1.00      1.00     47434
- #          macro avg       0.94      0.93      0.93     47434
- #       weighted avg       0.99      1.00      1.00     47434
+#          micro avg       0.99      1.00      1.00     47434
+#          macro avg       0.94      0.93      0.93     47434
+#       weighted avg       0.99      1.00      1.00     47434
 
 
 # validation set
- #                Name      0.97      0.95      0.96        64
- # Years of Experience      0.54      0.64      0.58        11
- #              Degree      0.59      0.64      0.61        53
- #         Designation      0.61      0.70      0.65       123
- #              Skills      0.93      0.73      0.82      1426
- #       Email Address      0.86      0.89      0.88       682
- #               Empty      0.96      0.98      0.97     16042
- #            Location      0.81      0.72      0.76        90
- #        College Name      0.41      0.61      0.49        56
- # Companies worked at      0.67      0.63      0.65       139
- #     Graduation Year      0.67      0.36      0.47        33
+#                Name      0.97      0.95      0.96        64
+# Years of Experience      0.54      0.64      0.58        11
+#              Degree      0.59      0.64      0.61        53
+#         Designation      0.61      0.70      0.65       123
+#              Skills      0.93      0.73      0.82      1426
+#       Email Address      0.86      0.89      0.88       682
+#               Empty      0.96      0.98      0.97     16042
+#            Location      0.81      0.72      0.76        90
+#        College Name      0.41      0.61      0.49        56
+# Companies worked at      0.67      0.63      0.65       139
+#     Graduation Year      0.67      0.36      0.47        33
 
- #          micro avg       0.94      0.95      0.94     18719
- #          macro avg       0.73      0.71      0.71     18719
- #       weighted avg       0.94      0.95      0.94     18719
+#          micro avg       0.94      0.95      0.94     18719
+#          macro avg       0.73      0.71      0.71     18719
+#       weighted avg       0.94      0.95      0.94     18719
 
 
-
-#%% prediction of unlabeled datasets
+# %% prediction of unlabeled datasets
 
 """
 # the model takes as input a list containing a list of the tokenized 'input_ids' for each instance and gives the predicted logits (i.e. without softmax)
@@ -791,28 +805,31 @@ print(classification_report(labels_labeled, y_pred_labeled))
 
 # take the first 3 lines of the training json dataset and try to predict the labels
 
-token_split_no_space_test = tokentize_dataset(convert_dataturks_to_spacy_unlabeled("resume/lineone.json"))
+token_split_no_space_test = tokentize_dataset(
+    convert_dataturks_to_spacy_unlabeled("resume/lineone.json"))
 batch_size = len(token_split_no_space_test)
 
 # tokenizer.tokenize(df_data0['content'].values.tolist())
-tokenized_inputs_test = tokenizer(token_split_no_space_test, truncation=True, is_split_into_words=True, padding='max_length', max_length=512)
+tokenized_inputs_test = tokenizer(token_split_no_space_test, truncation=True,
+                                  is_split_into_words=True, padding='max_length', max_length=512)
 
 tokenized_inputs_test_input_ids = tokenized_inputs_test['input_ids']
 
 # construct the word_ids np.array, replacing the first (start of sentence) by -1, and None by 4096
 word_ids = []
 for i in range(batch_size):
-    word_ids.append(tokenized_inputs_test.word_ids(batch_index = i))
+    word_ids.append(tokenized_inputs_test.word_ids(batch_index=i))
 word_ids = np.array(word_ids)
-word_ids[:,0] = -1
+word_ids[:, 0] = -1
 # array([[-1, 0, 0, ..., None, None, None],
 #        [-1, 0, 0, ..., None, None, None]], dtype=object)
-word_ids = np.where(word_ids == None, 4096, word_ids)  # use 4096 because 4096 > 512 = MAX_LEN
+# use 4096 because 4096 > 512 = MAX_LEN
+word_ids = np.where(word_ids == None, 4096, word_ids)
 
 # from word_ids, we identify the location of the start of each word
 word_ids_unique_index = []
 for i in range(batch_size):
-    word_ids_unique_index.append(np.unique(word_ids[i], return_index = True)[1])
+    word_ids_unique_index.append(np.unique(word_ids[i], return_index=True)[1])
 
 # returns [logits] for each sub-word
 prediction = model.predict(tokenized_inputs_test_input_ids)
@@ -820,9 +837,10 @@ prediction = model.predict(tokenized_inputs_test_input_ids)
 # apply softmax to the precited logits and take the most probable label
 pred_tags = []
 soft = tf.nn.softmax(prediction.logits)
-pred_tag_ids = tf.math.argmax(soft, axis = -1).numpy()
+pred_tag_ids = tf.math.argmax(soft, axis=-1).numpy()
 for i in range(batch_size):
-    pred_tags.append([ id2tag[pred_tag_ids[i,j]] for j in range(pred_tag_ids.shape[1])])
+    pred_tags.append([id2tag[pred_tag_ids[i, j]]
+                     for j in range(pred_tag_ids.shape[1])])
 pred_tags = np.array(pred_tags)
 # array([['Empty', 'Name', 'Name', ..., 'Empty', 'Empty', 'Empty'],
 #        ['Name', 'Name', 'Name', ..., 'Empty', 'Empty', 'Empty'],
@@ -836,9 +854,10 @@ for i in range(batch_size):
     pred_tags_i = pred_tags[i]
     # remove the first tag corresponding to <start of sentence>
     word_ids_unique_index_i = word_ids_unique_index[i][1:]
-    pred_tags_words.append([pred_tags_i[ind] for ind in word_ids_unique_index_i])
+    pred_tags_words.append([pred_tags_i[ind]
+                           for ind in word_ids_unique_index_i])
 
-pred_tags_words = pd.Series(pred_tags_words, name = 'predicted tags')
+pred_tags_words = pd.Series(pred_tags_words, name='predicted tags')
 
 # 0    [Name, Name, Designation, Designation, Designation, Empty, Companies worked at, Location, Empty, Empty, Empty, Empty, Empty, Empty, Empty, Empty, Email Address, Email Address, Email Address, Email Address, Email Address, Email Address, Email Address, Email Address, Email Address, Email Address, Email Address, Empty, Empty, Empty, Empty, Empty, Empty, Empty, Empty, Empty, Empty, Empty, Empty, Empty, Empty, Empty, Empty, Empty, Empty, Empty, Empty, Empty, Empty, Empty, Empty, Empty, Empty, Empty, Empty, Empty, Empty, Empty, Empty, Empty, Empty, Empty, Empty, Empty, Empty, Empty, Empty, Designation, Designation, Designation, Companies worked at, Empty, Empty, Empty, Empty, Empty, Empty, Empty, Empty, Empty, Empty, Empty, Empty, Empty, Empty, Empty, Empty, Empty, Empty, Empty, Empty, Empty, Empty, Empty, Empty, Empty, Empty, Empty, Empty, Empty, ...]
 # 1                                                                    [Name, Name, Empty, Empty, Empty, Empty, Empty, Empty, Empty, Empty, Location, Empty, Empty, Empty, Empty, Empty, Empty, Empty, Empty, Email Address, Email Address, Email Address, Email Address, Email Address, Email Address, Email Address, Email Address, Email Address, Email Address, Email Address, Empty, Empty, Empty, Empty, Empty, Empty, Empty, Empty, Empty, Empty, Empty, Empty, Empty, Empty, Empty, Empty, Empty, Empty, Empty, Empty, Empty, Empty, Empty, Empty, Empty, Empty, Empty, Empty, Empty, Empty, Empty, Empty, Empty, Empty, Empty, Empty, Empty, Empty, Empty, Empty, Empty, Empty, Empty, Empty, Empty, Empty, Empty, Empty, Empty, Empty, Empty, Empty, Empty, Empty, Empty, Empty, Empty, Empty, Empty, Empty, Empty, Empty, Empty, Empty, Empty, Empty, Empty, Empty, Empty, Empty, ...]
@@ -846,23 +865,14 @@ pred_tags_words = pd.Series(pred_tags_words, name = 'predicted tags')
 # Name: predicted tags, dtype: object
 
 
-
 # compare to the true labels
 
 
-token_split_no_space_test, labels_test = tokentize_dataset_tags(convert_dataturks_to_spacy("resume/lineone.json"))
+token_split_no_space_test, labels_test = tokentize_dataset_tags(
+    convert_dataturks_to_spacy("resume/lineone.json"))
 
 pd.Series(labels_test)
 # 0    [Name, Name, Designation, Designation, Designation, Empty, Companies worked at, Location, Empty, Empty, Empty, Empty, Empty, Empty, Email Address, Email Address, Email Address, Email Address, Email Address, Email Address, Email Address, Email Address, Email Address, Email Address, Email Address, Email Address, Email Address, Empty, Empty, Empty, Empty, Empty, Empty, Empty, Empty, Empty, Empty, Empty, Empty, Empty, Empty, Empty, Empty, Empty, Empty, Empty, Empty, Empty, Empty, Empty, Empty, Empty, Empty, Empty, Empty, Empty, Empty, Empty, Empty, Empty, Empty, Empty, Empty, Empty, Empty, Empty, Empty, Designation, Designation, Designation, Companies worked at, Empty, Empty, Empty, Empty, Empty, Empty, Empty, Empty, Empty, Empty, Empty, Empty, Empty, Empty, Empty, Empty, Empty, Empty, Empty, Empty, Empty, Empty, Empty, Empty, Empty, Empty, Empty, Empty, Empty, ...]
 # 1                                                                                    [Name, Name, Empty, Empty, Empty, Empty, Empty, Empty, Empty, Empty, Location, Empty, Empty, Empty, Empty, Empty, Empty, Empty, Empty, Email Address, Email Address, Email Address, Email Address, Email Address, Email Address, Email Address, Email Address, Email Address, Email Address, Email Address, Empty, Empty, Empty, Empty, Empty, Empty, Empty, Empty, Empty, Empty, Empty, Empty, Empty, Empty, Empty, Empty, Empty, Empty, Empty, Empty, Empty, Empty, Empty, Empty, Empty, Empty, Empty, Empty, Empty, Empty, Empty, Empty, Empty, Empty, Empty, Empty, Empty, Empty, Empty, Empty, Empty, Empty, Empty, Empty, Empty, Empty, Empty, Empty, Empty, Empty, Empty, Empty, Empty, Empty, Empty, Empty, Empty, Empty, Empty, Empty, Empty, Empty, Empty, Empty, Empty, Empty, Empty, Empty, Empty, Empty, ...]
 # 2                                                                     [Name, Name, Name, Location, Empty, Empty, Empty, Empty, Empty, Empty, Empty, Empty, Email Address, Email Address, Email Address, Email Address, Email Address, Email Address, Email Address, Email Address, Email Address, Email Address, Email Address, Email Address, Email Address, Empty, Empty, Empty, Empty, Empty, Empty, Empty, Empty, Empty, Empty, Empty, Empty, Empty, Empty, Empty, Empty, Empty, Empty, Empty, Empty, Empty, Empty, Empty, Empty, Empty, Empty, Empty, Empty, Empty, Empty, Empty, Empty, Empty, Empty, Empty, Empty, Empty, Empty, Empty, Empty, Empty, Empty, Empty, Empty, Empty, Empty, Empty, Empty, Empty, Empty, Empty, Empty, Empty, Empty, Empty, Empty, Empty, Empty, Empty, Empty, Empty, Empty, Empty, Empty, Empty, Empty, Empty, Empty, Empty, Empty, Empty, Empty, Empty, Empty, Empty, ...]
 # dtype: object
-
-
-
-
-
-
-
-
-

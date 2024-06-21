@@ -53,100 +53,119 @@ File descriptions
 
 """
 
-#%%
+# %%
 
 """
 parse datetime of the two original datasets, save as for future use, to save loading time.
 """
 
-#%% Preamble
+# %% Preamble
 
-import pandas as pd
 # Make the output look better
+from datetime import datetime
+import os
+import seaborn as sns
+import matplotlib.pyplot as plt
+import numpy as np
+import pandas as pd
 pd.set_option('display.max_rows', 500)
 pd.set_option('display.max_columns', 500)
 # pd.set_option('display.width', 1000)
-pd.options.mode.chained_assignment = None  # default='warn' # ignores warning about dropping columns inplace
-import numpy as np
-import matplotlib.pyplot as plt
+# default='warn' # ignores warning about dropping columns inplace
+pd.options.mode.chained_assignment = None
 # import re
-import seaborn as sns
 
-import os
 os.chdir(r'C:\Users\Cedric Yu\Desktop\Works\7_new-york-city-taxi-fare-prediction')
 
-#%% load original train.csv dataset
+# %% load original train.csv dataset
 
 # get training set column names
-train_cols = pd.read_csv(r'datasets\train.csv', nrows = 0).columns.tolist()
+train_cols = pd.read_csv(r'datasets\train.csv', nrows=0).columns.tolist()
 
 # parse datetime columns
-from datetime import datetime
 
 """# UTC timezone"""
+
+
 def parser(s):
     return datetime.strptime(s, '%Y-%m-%d %H:%M:%S %Z')
 
+
 """# downcast datatypes to save RAM"""
-dtypes = dict(zip(train_cols, [str, 'float32', str, 'float32', 'float32', 'float32', 'float32', 'uint8']))
+dtypes = dict(zip(train_cols, [
+              str, 'float32', str, 'float32', 'float32', 'float32', 'float32', 'uint8']))
 parse_dates = [2]
 
 # import original training dataset
-train_df_raw = pd.read_csv(r'datasets\train.csv', low_memory = True, dtype = dtypes, parse_dates = parse_dates, date_parser = parser)
+train_df_raw = pd.read_csv(r'datasets\train.csv', low_memory=True,
+                           dtype=dtypes, parse_dates=parse_dates, date_parser=parser)
 
 # train_df_raw.shape
 
 train_df = train_df_raw.copy()
 
-#%% load original test.csv dataset
+# %% load original test.csv dataset
 
 # get test set column names
 test_cols = pd.read_csv(r'datasets\test.csv', nrows=0).columns.tolist()
 
 # parse datetime columns
-from datetime import datetime
 
 """# UTC timezone"""
+
+
 def parser(s):
     return datetime.strptime(s, '%Y-%m-%d %H:%M:%S %Z')
 
+
 """# downcast datatypes to save RAM"""
-dtypes_test = dict(zip(test_cols, [str, str, 'float32', 'float32', 'float32', 'float32', 'uint8']))
+dtypes_test = dict(
+    zip(test_cols, [str, str, 'float32', 'float32', 'float32', 'float32', 'uint8']))
 parse_dates_test = [1]
 
 # import original training dataset
-test_df_raw = pd.read_csv(r'datasets\test.csv', low_memory = True, dtype = dtypes_test, parse_dates = parse_dates_test, date_parser = parser)
+test_df_raw = pd.read_csv(r'datasets\test.csv', low_memory=True,
+                          dtype=dtypes_test, parse_dates=parse_dates_test, date_parser=parser)
 
 test_df = test_df_raw.copy()
 
-#%% functions for extracting datetime features
+# %% functions for extracting datetime features
 
 """# year, month, weekday, day, hour, daylight_saving"""
+
 
 def get_year(row):
     return row.year
 
+
 def get_month(row):
     return row.month
+
 
 def get_weekday(row):
     return row.weekday()
 
+
 def get_day(row):
     return row.day
+
 
 def get_hour(row):
     return row.hour
 
+
 def daylight_saving(row):
     return row.tzname()
 
+
 """# convert UTC to Eastern Time (ET)"""
+
 
 def UTC_to_ET(row):
     return row.tz_localize('UTC').tz_convert('America/New_York')
 
-#%% extract datetime features
+# %% extract datetime features
+
 
 train_df['year'] = train_df['pickup_datetime'].apply(get_year)
 train_df['month'] = train_df['pickup_datetime'].apply(get_month)
@@ -154,16 +173,17 @@ train_df['weekday'] = train_df['pickup_datetime'].apply(get_weekday)
 train_df['day'] = train_df['pickup_datetime'].apply(get_day)
 train_df['hour'] = train_df['pickup_datetime'].apply(get_hour)
 train_df['pickup_datetime'] = train_df['pickup_datetime'].apply(UTC_to_ET)
-train_df['daylight_saving'] = train_df['pickup_datetime'].apply(daylight_saving)
+train_df['daylight_saving'] = train_df['pickup_datetime'].apply(
+    daylight_saving)
 
-train_df['daylight_saving'] = train_df['daylight_saving'].replace({'EDT': 1, 'EST': 0})
+train_df['daylight_saving'] = train_df['daylight_saving'].replace({
+                                                                  'EDT': 1, 'EST': 0})
 train_df['daylight_saving'] = train_df['daylight_saving'].astype(bool)
 
 # drop datetime column to save ram and load time
-train_df = train_df.drop('pickup_datetime', axis = 1)
+train_df = train_df.drop('pickup_datetime', axis=1)
 
 train_df.to_csv('engineered_datasets/train_df_datetime.csv')
-
 
 
 """# convert UTC to ET"""
@@ -178,34 +198,12 @@ test_df['weekday'] = test_df['pickup_datetime'].apply(get_weekday)
 test_df['day'] = test_df['pickup_datetime'].apply(get_day)
 test_df['hour'] = test_df['pickup_datetime'].apply(get_hour)
 test_df['daylight_saving'] = test_df['pickup_datetime'].apply(daylight_saving)
-test_df['daylight_saving'] = test_df['daylight_saving'].replace({'EDT': 1, 'EST': 0})
+test_df['daylight_saving'] = test_df['daylight_saving'].replace(
+    {'EDT': 1, 'EST': 0})
 test_df['daylight_saving'] = test_df['daylight_saving'].astype(bool)
 
 # drop datetime column to save ram and load time
-test_df = test_df.drop('pickup_datetime', axis = 1)
+test_df = test_df.drop('pickup_datetime', axis=1)
 
 
 test_df.to_csv('engineered_datasets/test_df_datetime.csv')
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-

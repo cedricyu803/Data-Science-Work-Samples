@@ -57,14 +57,14 @@ sentiment - Sentiment of the review; 1 for positive reviews and 0 for negative r
 review - Text of the review
 """
 
-#%% This file
+# %% This file
 
 """
 uses embedding vector from GloVe 6B.50d
 train an LSTM neural network
 """
 
-#%% Workflow
+# %% Workflow
 
 """
 # load datasets and clean text
@@ -87,25 +87,37 @@ train an LSTM neural network
 """
 
 
-#%% Preamble
+# %% Preamble
 
-import pandas as pd
 # Make the output look better
+from sklearn.model_selection import train_test_split
+import tensorflow as tf
+import keras
+from keras.initializers import glorot_uniform
+from keras.preprocessing import sequence
+from keras.layers.embeddings import Embedding
+from keras.layers import Dense, Input, Dropout, LSTM, Activation, Bidirectional
+from keras.models import Model
+import nltk
+import re
+import os
+import seaborn as sns
+import matplotlib.pyplot as plt
+import numpy as np
+import pandas as pd
+from bs4 import BeautifulSoup
 pd.set_option('display.max_rows', 500)
 pd.set_option('display.max_columns', 500)
 # pd.set_option('display.width', 1000)
 pd.set_option('display.max_colwidth', None)
-pd.options.mode.chained_assignment = None  # default='warn' # ignores warning about dropping columns inplace
-import numpy as np
-import matplotlib.pyplot as plt
+# default='warn' # ignores warning about dropping columns inplace
+pd.options.mode.chained_assignment = None
 # import re
-import seaborn as sns
 
-import os
 os.chdir(r'C:\Users\Cedric Yu\Desktop\Works\8_nlp_imdb_sentiment_classification')
 
 
-#%% load embedding matrix pre-trained using glove
+# %% load embedding matrix pre-trained using glove
 
 # https://nlp.stanford.edu/projects/glove/
 # read in the glove file. Each line in the text file is a string containing a word followed by the embedding vector, all separated by a whitespace
@@ -130,26 +142,25 @@ def read_glove_vecs(glove_file):
             i = i + 1
     return words_to_index, index_to_words, word_to_vec_map
 
+
 # index is valued  1-40000
-word_to_index, index_to_word, word_to_vec_map = read_glove_vecs('glove.6B.50d.txt')
+word_to_index, index_to_word, word_to_vec_map = read_glove_vecs(
+    'glove.6B.50d.txt')
 
 
+# %% functions for preprocessing, tokenisation and padding
 
-#%% functions for preprocessing, tokenisation and padding
-
-import re
-import nltk
 
 # for getting rid of html syntax
-from bs4 import BeautifulSoup    
 
 """preprocess text by removing html syntax, unimportant punctuation marks (e.g. ..., --), lowering case, and lemmatizing. Then tokenise and pad to max_len"""
 
 WNlemma_n = nltk.WordNetLemmatizer()
 
-def text_preprocess(text, pad = False, max_len=3000):
+
+def text_preprocess(text, pad=False, max_len=3000):
     # remove html syntax
-    text1 = BeautifulSoup(text).get_text() 
+    text1 = BeautifulSoup(text).get_text()
     # get rid of unimportant punctuation marks
     # !!! get rid of apostrophe too (and single quotation marks)
     # text1 = re.sub(r'([^\d\w\'\s\.\-]+|[-\.]{2,})', ' ', text1)
@@ -169,43 +180,42 @@ def text_preprocess(text, pad = False, max_len=3000):
     return text1
 
 
-
-def pd_text_preprocess(row, pad = False, max_len=3000):
-    row['review_preprocessed'] = text_preprocess(row['review'], pad = True, max_len = max_len)
+def pd_text_preprocess(row, pad=False, max_len=3000):
+    row['review_preprocessed'] = text_preprocess(
+        row['review'], pad=True, max_len=max_len)
     # row['length'] = len(row['review_preprocessed'])
     return row
 
 
-
-#%% function that converts training sentences into indices with padding
-
+# %% function that converts training sentences into indices with padding
 # set unknown and padded tokens to 0; the embedding vectors will be zero-vectors
 padded_token_index = 0
 unknown_token_index = 0
+
 
 def sentences_to_indices(X, word_to_index):
     """
     Converts an array of [padded, tokenised sentences] into an array of indices corresponding to words in the sentences.
     The output shape should be such that it can be given to 'Embedding()'
-    
+
     Arguments:
     X -- array of padded, tokenised sentences, of shape (m, max_len)
     word_to_index -- a dictionary containing the each word mapped to its index
-    
+
     Returns:
     X_indices -- array of indices corresponding to words in the sentences from X, of shape (m, max_len)
     """
     # set padded tokens to index = padded_token_index
     word_to_index0 = word_to_index.copy()
     word_to_index0['-1 empty'] = padded_token_index
-    
+
     # set unknown tokens to index = unknown_token_index
     def word_to_index00(key):
         return word_to_index0.get(key, unknown_token_index)
-    
+
     # speed up computation with vectorisation
     X_indices = np.vectorize(word_to_index00)(X)
-    
+
     return X_indices
 
 # test
@@ -216,19 +226,11 @@ def sentences_to_indices(X, word_to_index):
 # print(end - start)
 # X1_indices = sentences_to_indices(X1, word_to_index)
 # # array([[292526.,  58997., 264550., ...,      0.,      0.,      0.],
-       # [358160., 251034., 174032., ...,      0.,      0.,      0.]])
+    # [358160., 251034., 174032., ...,      0.,      0.,      0.]])
 
 
-#%% LSTM with embedding layer
+# %% LSTM with embedding layer
 
-
-from keras.models import Model
-from keras.layers import Dense, Input, Dropout, LSTM, Activation, Bidirectional
-from keras.layers.embeddings import Embedding
-from keras.preprocessing import sequence
-from keras.initializers import glorot_uniform
-import keras
-import tensorflow as tf
 
 """
 Overview of model:
@@ -257,10 +259,11 @@ Embedding ---> Bidirectional LSTM ---> Bidirectional LSTM ---> Dropout ---> Full
 
 """build an embedding layer"""
 
+
 def pretrained_embedding_layer(word_to_vec_map, word_to_index):
     """
     Creates a Keras Embedding() layer and loads in pre-trained GloVe 50-dimensional vectors.
-    
+
     Arguments:
     word_to_vec_map -- dictionary mapping words to their GloVe vector representation.
     word_to_index -- dictionary mapping from words to their indices in the vocabulary (400,001 words)
@@ -268,14 +271,14 @@ def pretrained_embedding_layer(word_to_vec_map, word_to_index):
     Returns:
     embedding_layer -- pretrained layer Keras instance
     """
-    
-    # Embedding() in Keras: 
+
+    # Embedding() in Keras:
     # input_dim: Integer. Size of the vocabulary, i.e. maximum integer index + 1.
-    vocab_len = len(word_to_index) + 1 
+    vocab_len = len(word_to_index) + 1
     # output_dim in Embedding()
     # dimensionality of GloVe word vectors (= 50)
-    emb_dim = list(word_to_vec_map.values())[0].shape[0]      
-    
+    emb_dim = list(word_to_vec_map.values())[0].shape[0]
+
     # using word_to_vec_map from pre-trained Glove, construct the embedding matrix
     # Initialize the embedding matrix as a numpy array of zeros.
     embedding_matrix = np.zeros([vocab_len, emb_dim])
@@ -287,14 +290,14 @@ def pretrained_embedding_layer(word_to_vec_map, word_to_index):
     # Define Keras embedding layer with the correct input and output sizes
     # Make it non-trainable.
     embedding_layer = Embedding(vocab_len, emb_dim, trainable=False)
-    
+
     # !!! Weights are created when the Model is first called on inputs or build() is called with an input_shape.
     # somehow embeddings_initializer = tf.keras.initializers.Constant(embedding_matrix) does not work...
     # in our model, embedding_layer takes the input layer with input shape (max_len,)
     # here embedding_layer does not know max_len yet, so use (None,)
     embedding_layer.build((None,))
     embedding_layer.set_weights([embedding_matrix])
-    
+
     return embedding_layer
 
 
@@ -310,9 +313,10 @@ The model takes as input an array of sentences of shape (m, max_len, ) defined b
 The model outputs a sigmoid probability vector of shape (m, 1).
 """
 
-def sentiment_classification_model(input_shape, word_to_vec_map, word_to_index, num_classes = 1):
+
+def sentiment_classification_model(input_shape, word_to_vec_map, word_to_index, num_classes=1):
     """
-    
+
     Arguments:
     input_shape -- shape of the input, usually (max_len,)
     word_to_vec_map -- dictionary mapping every word in a vocabulary into its 50-dimensional vector representation
@@ -321,22 +325,23 @@ def sentiment_classification_model(input_shape, word_to_vec_map, word_to_index, 
     Returns:
     model -- a model instance in Keras
     """
-    
+
     # Define sentence_indices as the input of the graph
     # It should be of shape input_shape and dtype 'int32' (as it contains indices).
-    sentence_indices = Input(shape = input_shape, dtype = 'int32')
-    
+    sentence_indices = Input(shape=input_shape, dtype='int32')
+
     # Create the embedding layer pretrained with GloVe Vectors
-    embedding_layer = pretrained_embedding_layer(word_to_vec_map, word_to_index)
-    
+    embedding_layer = pretrained_embedding_layer(
+        word_to_vec_map, word_to_index)
+
     # Propagate sentence_indices through your embedding layer, you get back the embeddings
     embeddings = embedding_layer(sentence_indices)
-    
-        # !!! You must set return_sequences = True when stacking LSTM layers (except the last LSTM layer), so that the next LSTM layer has as input a sequence of length = num_timesteps
-    X = Bidirectional(LSTM(256, return_sequences = True))(embeddings)
+
+    # !!! You must set return_sequences = True when stacking LSTM layers (except the last LSTM layer), so that the next LSTM layer has as input a sequence of length = num_timesteps
+    X = Bidirectional(LSTM(256, return_sequences=True))(embeddings)
     # this is the last LSTM layer; it should only output the final state for the next (non-LSTM) layer
-    X = Bidirectional(LSTM(256, return_sequences = False))(X)
-    X = Dense(64, activation = 'tanh')(X)
+    X = Bidirectional(LSTM(256, return_sequences=False))(X)
+    X = Dense(64, activation='tanh')(X)
     X = Dropout(.2)(X)
     X = Dense(num_classes)(X)
     if num_classes == 1:
@@ -345,33 +350,35 @@ def sentiment_classification_model(input_shape, word_to_vec_map, word_to_index, 
     elif num_classes > 1:
         # Add a softmax activation
         X = Activation('softmax')(X)
-    
+
     # Create Model instance which converts sentence_indices into X.
-    model = Model(inputs = sentence_indices, outputs = X)
-    
+    model = Model(inputs=sentence_indices, outputs=X)
+
     return model
 
 
-#%% load datasets labeledTrainData.tsv and testData.tsv
+# %% load datasets labeledTrainData.tsv and testData.tsv
 
-labeledTrainData = pd.read_csv ("labeledTrainData.tsv", sep = '\t', header = [0])
-testData = pd.read_csv ("testData.tsv", sep = '\t', header = [0])
+labeledTrainData = pd.read_csv("labeledTrainData.tsv", sep='\t', header=[0])
+testData = pd.read_csv("testData.tsv", sep='\t', header=[0])
 
 """pre-processing"""
 max_len = 2700
-labeledTrainData = labeledTrainData.apply(pd_text_preprocess, axis = 1, pad = True, max_len = max_len)
+labeledTrainData = labeledTrainData.apply(
+    pd_text_preprocess, axis=1, pad=True, max_len=max_len)
 # max length = 2602
 
 # X_test is np.array of shape (m, max_len)
-testData = testData.apply(pd_text_preprocess, axis = 1, pad = True, max_len = max_len)
+testData = testData.apply(pd_text_preprocess, axis=1,
+                          pad=True, max_len=max_len)
 X_test = np.array(testData['review_preprocessed'].tolist())
 # max length = 2331
 
-#%% train-validation split
+# %% train-validation split
 
-from sklearn.model_selection import train_test_split
 
-X_train, X_valid, y_train, y_valid = train_test_split(labeledTrainData['review_preprocessed'], labeledTrainData['sentiment'], random_state=0, train_size = 0.8)
+X_train, X_valid, y_train, y_valid = train_test_split(
+    labeledTrainData['review_preprocessed'], labeledTrainData['sentiment'], random_state=0, train_size=0.8)
 
 # X_train and X_valid are np.array of shape (m, max_len)
 X_train = np.array(X_train.tolist())
@@ -391,7 +398,7 @@ X_test_indices = sentences_to_indices(X_test, word_to_index)
 # np.save('y_train.npy', y_train)
 # np.save('y_valid.npy', y_valid)
 
-#%% load pre-processed datasets
+# %% load pre-processed datasets
 
 # !!!
 X_train_indices = np.load('X_train_indices.npy')
@@ -405,19 +412,22 @@ y_valid1 = np.expand_dims(y_valid, -1)
 max_len = X_train_indices.shape[-1]
 # 1500
 
-#%% fit model
+# %% fit model
 
-model = sentiment_classification_model((max_len,), word_to_vec_map, word_to_index)
+model = sentiment_classification_model(
+    (max_len,), word_to_vec_map, word_to_index)
 # model.summary()
 
-model.compile(loss='binary_crossentropy', optimizer=tf.keras.optimizers.Adam(learning_rate=0.0001), metrics=[tf.keras.metrics.AUC()])
+model.compile(loss='binary_crossentropy', optimizer=tf.keras.optimizers.Adam(
+    learning_rate=0.0001), metrics=[tf.keras.metrics.AUC()])
 
 
 callback = tf.keras.callbacks.EarlyStopping(
     monitor='val_loss', patience=5, restore_best_weights=True)
 
 # input_shape = (m, max_len)
-history = model.fit(X_train_indices, y_train1, validation_data = (X_valid_indices, y_valid1), epochs = 100, batch_size = 32, callbacks = [callback])
+history = model.fit(X_train_indices, y_train1, validation_data=(
+    X_valid_indices, y_valid1), epochs=100, batch_size=32, callbacks=[callback])
 
 # Epoch 1/50
 # 625/625 [==============================] - 466s 738ms/step - loss: 0.6678 - auc_2: 0.6382 - val_loss: 0.5679 - val_auc_2: 0.8130
@@ -439,7 +449,6 @@ history = model.fit(X_train_indices, y_train1, validation_data = (X_valid_indice
 # 625/625 [==============================] - 454s 726ms/step - loss: 0.1603 - auc_2: 0.9834 - val_loss: 0.3248 - val_auc_2: 0.9484
 # Epoch 10/50
 # 625/625 [==============================] - 452s 724ms/step - loss: 0.1210 - auc_2: 0.9900 - val_loss: 0.4022 - val_auc_2: 0.9442
-
 
 
 """
@@ -508,13 +517,6 @@ no significant gain
 """
 
 
-
-
-
-
-
-
-
 history_df = pd.DataFrame(history.history)
 history_df.columns
 
@@ -531,8 +533,6 @@ plt.legend()
 # plt.savefig('LSTM_2_auc', dpi = 150)
 
 
-
-
 """# save the model"""
 
 model.save('LSTM_model_2.h5')
@@ -540,8 +540,9 @@ model.save('LSTM_model_2.h5')
 
 prediction = model.predict(X_test_indices).squeeze()
 prediction_bool = (prediction > 0.5).astype(int)
-testData = pd.read_csv ("testData.tsv", sep = '\t', header = [0])
-LSTM_embedding_pred = pd.Series(prediction_bool, index = testData['id'], name = 'sentiment')
+testData = pd.read_csv("testData.tsv", sep='\t', header=[0])
+LSTM_embedding_pred = pd.Series(
+    prediction_bool, index=testData['id'], name='sentiment')
 LSTM_embedding_pred.to_csv('LSTM_embedding_no_stopwords_pred.csv')
 
 # with stopwords
@@ -552,6 +553,3 @@ LSTM_embedding_pred.to_csv('LSTM_embedding_no_stopwords_pred.csv')
 # without stopwords
 # LSTM_2 (256x2)
 # 0.83696
-
-
-

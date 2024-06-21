@@ -5,7 +5,7 @@ Created on Wed Sep 08 19:00:00 2021
 @author: Cedric Yu
 """
 
-#%%
+# %%
 """
 #####################################
 
@@ -49,64 +49,75 @@ File descriptions
 
 """
 
-#%% 
+# %%
 
 """
 model training
 """
 
-#%% Preamble
+# %% Preamble
 
-import pandas as pd
 # Make the output look better
+import lightgbm as lgb
+from pickle import dump
+from xgboost import XGBRegressor
+from sklearn.metrics import mean_squared_error
+import os
+import gc
+import seaborn as sns
+import matplotlib.pyplot as plt
+import pandas as pd
+import numpy as np
 pd.set_option('display.max_rows', 500)
 pd.set_option('display.max_columns', 500)
 # pd.set_option('display.width', 1000)
-pd.options.mode.chained_assignment = None  # default='warn' # ignores warning about dropping columns inplace
-import numpy as np
-import matplotlib.pyplot as plt
-import seaborn as sns
-import gc
+# default='warn' # ignores warning about dropping columns inplace
+pd.options.mode.chained_assignment = None
 
 # import dask
 # import dask.dataframe as dd
 
 
-import os
 os.chdir(r'C:\Users\Cedric Yu\Desktop\Works\7_new-york-city-taxi-fare-prediction')
 
 
-#%% load pre-processed datasets for model training
+# %% load pre-processed datasets for model training
 # !!!
 
-train_cols = pd.read_csv('engineered_datasets/X_train_encoded4.csv', nrows=0).columns.drop(['Unnamed: 0']).tolist()
+train_cols = pd.read_csv('engineered_datasets/X_train_encoded4.csv',
+                         nrows=0).columns.drop(['Unnamed: 0']).tolist()
 
 # downcast datatypes to save RAM
-dtypes_new = dict(zip(train_cols, ['float32', 'float32', 'float32', 'float32', bool, 'float32', 'float32', 'float32', 'float32', 'float32', bool, bool, bool, bool, bool, bool, bool, bool, bool, bool, bool, bool, bool, bool, bool, bool, bool, bool, bool, bool, bool, 'float32', 'float32', 'float32', 'float32', 'float32', 'float32', 'float32']))
+dtypes_new = dict(zip(train_cols, ['float32', 'float32', 'float32', 'float32', bool, 'float32', 'float32', 'float32', 'float32', 'float32', bool, bool, bool, bool, bool, bool,
+                  bool, bool, bool, bool, bool, bool, bool, bool, bool, bool, bool, bool, bool, bool, bool, 'float32', 'float32', 'float32', 'float32', 'float32', 'float32', 'float32']))
 
 # X_train_encoded4 = dd.read_csv('engineered_datasets/X_train_encoded4.csv', usecols = train_cols, dtype = dtypes_new)
 # X_valid_encoded4 = dd.read_csv('engineered_datasets/X_valid_encoded4.csv', usecols = train_cols, dtype = dtypes_new)
 
 """ only load the first 20M rows of training set due to insufficient memory"""
-X_train_encoded4 = pd.read_csv('engineered_datasets/X_train_encoded4.csv', index_col = [0], dtype = dtypes_new, nrows = 20000000)
-X_valid_encoded4 = pd.read_csv('engineered_datasets/X_valid_encoded4.csv', index_col = [0], dtype = dtypes_new)
+X_train_encoded4 = pd.read_csv(
+    'engineered_datasets/X_train_encoded4.csv', index_col=[0], dtype=dtypes_new, nrows=20000000)
+X_valid_encoded4 = pd.read_csv(
+    'engineered_datasets/X_valid_encoded4.csv', index_col=[0], dtype=dtypes_new)
 
 # X_train_encoded4_scaled = pd.read_csv('engineered_datasets/2021-09-06_5/X_train_encoded4_scaled.csv', index_col = [0])
 # X_valid_encoded4_scaled = pd.read_csv('engineered_datasets/2021-09-06_5/X_valid_encoded4_scaled.csv', index_col = [0])
 
-y_cols = pd.read_csv('engineered_datasets/y_train.csv', nrows=0).columns.drop(['Unnamed: 0']).tolist()
+y_cols = pd.read_csv('engineered_datasets/y_train.csv',
+                     nrows=0).columns.drop(['Unnamed: 0']).tolist()
 
 # y_train = dd.read_csv('engineered_datasets/y_train.csv', usecols = y_cols).squeeze()
 # y_valid = dd.read_csv('engineered_datasets/y_valid.csv', usecols = y_cols).squeeze()
 
-y_train = pd.read_csv('engineered_datasets/y_train.csv', index_col = [0], nrows = 20000000).squeeze()
-y_valid = pd.read_csv('engineered_datasets/y_valid.csv', index_col = [0]).squeeze()
+y_train = pd.read_csv('engineered_datasets/y_train.csv',
+                      index_col=[0], nrows=20000000).squeeze()
+y_valid = pd.read_csv('engineered_datasets/y_valid.csv',
+                      index_col=[0]).squeeze()
 
 gc.collect()
 
-#%% model scores
+# %% model scores
 
-from sklearn.metrics import mean_squared_error
 
 #################################
 
@@ -199,7 +210,7 @@ from sklearn.metrics import mean_squared_error
 # linridge_mse_poly = GridSearchCV(linridge_poly, param_grid = grid_values_ridge_poly, scoring = 'neg_mean_squared_log_error')
 # linridge_mse_poly.fit(encoded_X_train_scaled_poly, y_train)
 # print('Grid best parameter (min. mean_squared_log_error): ', linridge_mse_poly.best_params_)
-# # 
+# #
 
 # print('Ridge Polynomial (p = 3) Regression with alpha = {}: training set R2 score is {:.3f}'.format(linridge_mse_poly.best_params_['alpha'], linridge_mse_poly.score(encoded_X_train_scaled_poly, y_train)))
 # print('Ridge Polynomial (p = 3) Regression with alpha = {}: validation set R2 score is {:.3f}'.format(linridge_mse_poly.best_params_['alpha'], linridge_mse_poly.score(encoded_X_valid_scaled_poly, y_valid)))
@@ -234,7 +245,7 @@ from sklearn.metrics import mean_squared_error
 # dump(knnreg, open('knnreg5.pkl', 'wb'))
 
 
-# this will take forever... 
+# this will take forever...
 # knnreg2 = KNeighborsRegressor()
 # grid_values_knn = {'n_neighbors': [3, 5, 7], 'p': [1]}
 
@@ -259,18 +270,16 @@ from sklearn.metrics import mean_squared_error
 # !!!
 """# XGBRegressor """
 
-from sklearn.metrics import mean_squared_error
-
-from xgboost import XGBRegressor
 
 # use at most 5M training instances for fitting
-XGBR_model = XGBRegressor(eval_metric = "rmse", 
-                          learning_rate = 0.05, 
-                          max_depth = 8,
-                          n_estimators = 100,
-                          reg_lambda = 0.7,
-                          n_jobs = 6)
-XGBR_model.fit(X_train_encoded4, y_train, eval_set = [(X_train_encoded4, y_train), (X_valid_encoded4, y_valid)], early_stopping_rounds = 40)
+XGBR_model = XGBRegressor(eval_metric="rmse",
+                          learning_rate=0.05,
+                          max_depth=8,
+                          n_estimators=100,
+                          reg_lambda=0.7,
+                          n_jobs=6)
+XGBR_model.fit(X_train_encoded4, y_train, eval_set=[
+               (X_train_encoded4, y_train), (X_valid_encoded4, y_valid)], early_stopping_rounds=40)
 # XGBR_model.fit(X_train_encoded4_scaled, y_train, eval_set = [(X_train_encoded4_scaled, y_train), (X_valid_encoded4_scaled, y_valid)])
 # del XGBR_model
 
@@ -283,7 +292,8 @@ XGBR_model.fit(X_train_encoded4, y_train, eval_set = [(X_train_encoded4, y_train
 # print(mean_squared_error(y_valid, XGBR_model.predict(X_valid_encoded4_scaled), squared = False))
 
 
-XGBR_feature_importances = pd.Series(XGBR_model.feature_importances_, index = X_train_encoded4.columns).sort_values(ascending = False)
+XGBR_feature_importances = pd.Series(
+    XGBR_model.feature_importances_, index=X_train_encoded4.columns).sort_values(ascending=False)
 # euclidean_distance_miles        0.719793
 # dropoff_county_not_in_NYC       0.049462
 # dropoff_airport                 0.040797
@@ -357,14 +367,13 @@ XGBR_feature_importances = pd.Series(XGBR_model.feature_importances_, index = X_
 # X_valid_encoded4 = X_valid_encoded4.repartition(npartitions = 1)
 
 
-
 # dask_XGBR_model = xgb.dask.train(client, params, dtrain)
 
 
 # xgboost.dask.predict(client, dask_XGBR_model0, X_valid_encoded4).compute()
 
-# dask_XGBR_model = dxgb.XGBRegressor(client, eval_metric = "rmse", 
-#                           learning_rate = 0.05, 
+# dask_XGBR_model = dxgb.XGBRegressor(client, eval_metric = "rmse",
+#                           learning_rate = 0.05,
 #                           max_depth = 8,
 #                           n_estimators = 100,
 #                           reg_lambda = 0.7)
@@ -376,15 +385,14 @@ XGBR_feature_importances = pd.Series(XGBR_model.feature_importances_, index = X_
 
 # grid_values_XGBR = {'n_estimators': list(np.arange(100, 1100, 100)), 'learning_rate': [0.001, 0.01, 0.1], 'max_depth': [3, 4, 5, 6, 7]}
 
-# fit_params={"early_stopping_rounds": 50, 
-#             "eval_metric" : "rmsle", 
+# fit_params={"early_stopping_rounds": 50,
+#             "eval_metric" : "rmsle",
 #             "eval_set" : [[X_valid_encoded4_scaled, y_valid]]}
 
 # XGBR_model2 = XGBRegressor(eval_metric="rmsle", n_jobs = 8)
 # XGBR_model_rmsle = RandomizedSearchCV(XGBR_model2, param_distributions = grid_values_XGBR, scoring = 'neg_mean_squared_log_error', cv = 5, verbose = 1, n_iter = 4)
 # XGBR_model_rmsle.fit(X_train_encoded4_scaled, y_train, **fit_params)
 # print('Grid best parameter (min. mean_squared_log_error): ', XGBR_model_rmsle.best_params_)
-
 
 
 # np.sqrt(mean_squared_log_error(y_train, XGBR_model_rmsle.predict(X_train_encoded4_scaled)))
@@ -396,7 +404,6 @@ XGBR_feature_importances = pd.Series(XGBR_model.feature_importances_, index = X_
 
 
 # pd.Series(XGBR_model_rmsle.feature_importances_, index = X_train_encoded4_scaled.columns).sort_values(ascending = False)
-
 
 
 # XGBR_best = XGBRegressor(n_estimators = 950, learning_rate = 0.01, max_depth = 5,  eval_metric="rmsle", n_jobs = 8)
@@ -422,16 +429,12 @@ XGBR_feature_importances = pd.Series(XGBR_model.feature_importances_, index = X_
 # print(mean_squared_error(y_valid, RFR.predict(X_valid_encoded4_scaled), squared = False))
 
 
-
 # pd.Series(RFR.feature_importances_, index = X_train_encoded4_scaled.columns).sort_values(ascending = False).plot.barh()
-
-
 
 
 # from pickle import dump
 # # save the model
 # dump(RFR, open('RFR_model.pkl', 'wb'))
-
 
 
 # from sklearn.model_selection import RandomizedSearchCV
@@ -493,79 +496,63 @@ XGBR_feature_importances = pd.Series(XGBR_model.feature_importances_, index = X_
 # my_pred.to_csv('my_submission_RFR_best.csv')
 
 
-
 #################################
 
 """# lightGBM"""
 
-import lightgbm as lgb
 
 # training set size: at most 20M
-LGBMreg = lgb.LGBMRegressor(boosting_type = 'gbdt', 
-                            learning_rate = 0.02, 
-                            num_leaves = 800,
-                            n_estimators = 500, 
-                            num_iterations = 5000, 
-                            max_bin = 500, 
-                            feature_fraction = 0.7, 
-                            bagging_fraction = 0.7,
-                            lambda_l2 = 0.5,
-                            max_depth = 25,
-                            silent = False
+LGBMreg = lgb.LGBMRegressor(boosting_type='gbdt',
+                            learning_rate=0.02,
+                            num_leaves=800,
+                            n_estimators=500,
+                            num_iterations=5000,
+                            max_bin=500,
+                            feature_fraction=0.7,
+                            bagging_fraction=0.7,
+                            lambda_l2=0.5,
+                            max_depth=25,
+                            silent=False
                             )
 
 LGBMreg.fit(X_train_encoded4, y_train,
-            eval_set=[(X_train_encoded4, y_train), (X_valid_encoded4, y_valid)], 
-            eval_metric = 'rmse',
-            early_stopping_rounds = 50, 
-            verbose = True)
+            eval_set=[(X_train_encoded4, y_train),
+                      (X_valid_encoded4, y_valid)],
+            eval_metric='rmse',
+            early_stopping_rounds=50,
+            verbose=True)
 
 
 # LGBMreg.fit(X_train_encoded4_scaled, y_train,
 #             eval_set=[(X_train_encoded4_scaled, y_train), (X_valid_encoded4_scaled, y_valid)],
-#             # eval_metric = rmsle, 
+#             # eval_metric = rmsle,
 #             eval_metric = 'rmse',
-#             early_stopping_rounds = 100, 
+#             early_stopping_rounds = 100,
 #             verbose = True)
 
 
 # print(mean_squared_error(y_train, LGBMreg.predict(X_train_encoded4_scaled), squared = False))
 # print(mean_squared_error(y_valid, LGBMreg.predict(X_valid_encoded4_scaled), squared = False))
 
-LGBMreg_feature_importances = pd.Series(LGBMreg.feature_importances_, index = X_train_encoded4.columns).sort_values(ascending = False)
-LGBMreg_feature_importances = LGBMreg_feature_importances / LGBMreg_feature_importances.max()
+LGBMreg_feature_importances = pd.Series(
+    LGBMreg.feature_importances_, index=X_train_encoded4.columns).sort_values(ascending=False)
+LGBMreg_feature_importances = LGBMreg_feature_importances / \
+    LGBMreg_feature_importances.max()
 
-fig = plt.figure('feature_importances', figsize = (10, 6), dpi = 200)
-sns.barplot(y = LGBMreg_feature_importances.iloc[:18].index, x = LGBMreg_feature_importances.iloc[:18].values, color = 'skyblue')
+fig = plt.figure('feature_importances', figsize=(10, 6), dpi=200)
+sns.barplot(y=LGBMreg_feature_importances.iloc[:18].index,
+            x=LGBMreg_feature_importances.iloc[:18].values, color='skyblue')
 # LGBMreg_feature_importances.plot.barh()
 ax = plt.gca()
 ax.set_xlabel('Feature importance')
 ax.set_ylabel(None)
-ax.set_yticklabels(ax.get_yticklabels(), fontsize = 'small')
+ax.set_yticklabels(ax.get_yticklabels(), fontsize='small')
 ax.set_title('lightGBM Regressor')
 ax.spines['top'].set_visible(False)
 ax.spines['right'].set_visible(False)
-plt.xlim(0,1)
+plt.xlim(0, 1)
 fig.tight_layout()
 # plt.savefig('plots/lightgbm_feature_importances20M.png', dpi = 200)
 
-from pickle import dump
 # save the model
 dump(LGBMreg, open('LGBMreg.pkl', 'wb'))
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-

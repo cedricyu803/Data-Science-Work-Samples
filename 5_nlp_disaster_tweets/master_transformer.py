@@ -57,14 +57,14 @@ Columns
 
 """
 
-#%% This file
+# %% This file
 
 """
 uses BertForSequenceClassification and pre-trained bert-base-uncased from hugging face transformers
 https://huggingface.co/bert-base-uncased
 """
 
-#%% Workflow
+# %% Workflow
 
 """
 # load datasets and clean text
@@ -80,36 +80,46 @@ https://huggingface.co/bert-base-uncased
 """
 
 
-#%% Preamble
+# %% Preamble
 
-import pandas as pd
 # Make the output look better
+import tensorflow as tf
+from transformers import TFBertForSequenceClassification
+from transformers import BertTokenizerFast
+from sklearn.preprocessing import MinMaxScaler
+import os
+import seaborn as sns
+import matplotlib.pyplot as plt
+import pandas as pd
+import numpy as np
 pd.set_option('display.max_rows', 500)
 pd.set_option('display.max_columns', 500)
 # pd.set_option('display.width', 1000)
 pd.set_option('display.max_colwidth', None)
-pd.options.mode.chained_assignment = None  # default='warn' # ignores warning about dropping columns inplace
-import numpy as np
-import matplotlib.pyplot as plt
+# default='warn' # ignores warning about dropping columns inplace
+pd.options.mode.chained_assignment = None
 # import re
-import seaborn as sns
 
-import os
 os.chdir(r'C:\Users\Cedric Yu\Desktop\Works\9_nlp_disaster_tweets')
 
 
-#%% load engineered datasets
+# %% load engineered datasets
 
 # !!!
-X_train_text_preprocessed = np.load('engineered_datasets/X_train_text_preprocessed.npy', allow_pickle=True).squeeze().tolist()
-X_valid_text_preprocessed = np.load('engineered_datasets/X_valid_text_preprocessed.npy', allow_pickle=True).squeeze().tolist()
-X_test_text_preprocessed = np.load('engineered_datasets/X_test_text_preprocessed.npy', allow_pickle=True).squeeze().tolist()
+X_train_text_preprocessed = np.load(
+    'engineered_datasets/X_train_text_preprocessed.npy', allow_pickle=True).squeeze().tolist()
+X_valid_text_preprocessed = np.load(
+    'engineered_datasets/X_valid_text_preprocessed.npy', allow_pickle=True).squeeze().tolist()
+X_test_text_preprocessed = np.load(
+    'engineered_datasets/X_test_text_preprocessed.npy', allow_pickle=True).squeeze().tolist()
 
-X_train_no_text_encoded2 = np.load('engineered_datasets/X_train_no_text_encoded2.npy')
-X_valid_no_text_encoded2 = np.load('engineered_datasets/X_valid_no_text_encoded2.npy')
-X_test_no_text_encoded2 = np.load('engineered_datasets/X_test_no_text_encoded2.npy')
+X_train_no_text_encoded2 = np.load(
+    'engineered_datasets/X_train_no_text_encoded2.npy')
+X_valid_no_text_encoded2 = np.load(
+    'engineered_datasets/X_valid_no_text_encoded2.npy')
+X_test_no_text_encoded2 = np.load(
+    'engineered_datasets/X_test_no_text_encoded2.npy')
 
-from sklearn.preprocessing import MinMaxScaler
 scaler = MinMaxScaler()
 
 X_train_no_text_encoded2 = scaler.fit_transform(X_train_no_text_encoded2)
@@ -122,12 +132,11 @@ y_train1 = y_train.tolist()
 y_valid1 = y_valid.tolist()
 
 
-
 # X_train_no_text_encoded2.shape
 num_features = X_train_no_text_encoded2.shape[-1]
 
 
-#%% tokenisation and target label alignment with the huggingface library
+# %% tokenisation and target label alignment with the huggingface library
 
 """
 Before feeding the texts to a Transformer model, we will need to tokenize our input using a huggingface Transformer tokenizer. 
@@ -145,21 +154,24 @@ Our problem is many-to-one; the target of each instance is one label, so we can 
 All we need to do is to tokenise and pad sentences
 """
 
-from transformers import BertTokenizerFast
-tokenizer = BertTokenizerFast.from_pretrained('pre-trained-transformer-bert-base-uncased/')
+tokenizer = BertTokenizerFast.from_pretrained(
+    'pre-trained-transformer-bert-base-uncased/')
 
 
 max_len = 512
 
-X_train_tokenized = tokenizer(X_train_text_preprocessed, truncation=True, is_split_into_words=False, padding='max_length', max_length=max_len)
+X_train_tokenized = tokenizer(X_train_text_preprocessed, truncation=True,
+                              is_split_into_words=False, padding='max_length', max_length=max_len)
 X_train_tokenized_ids = X_train_tokenized['input_ids']
 
 
-X_valid_tokenized = tokenizer(X_valid_text_preprocessed, truncation=True, is_split_into_words=False, padding='max_length', max_length=max_len)
+X_valid_tokenized = tokenizer(X_valid_text_preprocessed, truncation=True,
+                              is_split_into_words=False, padding='max_length', max_length=max_len)
 X_valid_tokenized_ids = X_valid_tokenized['input_ids']
 
 
-X_test_tokenized = tokenizer(X_test_text_preprocessed, truncation=True, is_split_into_words=False, padding='max_length', max_length=max_len)
+X_test_tokenized = tokenizer(X_test_text_preprocessed, truncation=True,
+                             is_split_into_words=False, padding='max_length', max_length=max_len)
 X_test_tokenized_ids = X_test_tokenized['input_ids']
 
 
@@ -201,18 +213,15 @@ examples
 """ ---------------- end of example ----------------"""
 
 
-
-
-#%% optimisation
+# %% optimisation
 
 """
 feed data into a pretrained 🤗 model. optimize a DistilBERT model, which matches the tokenizer used to preprocess your data
 """
 
-import tensorflow as tf
-from transformers import TFBertForSequenceClassification
 
-Bert_trans_model = TFBertForSequenceClassification.from_pretrained('pre-trained-transformer-bert-base-uncased/', num_labels=1)
+Bert_trans_model = TFBertForSequenceClassification.from_pretrained(
+    'pre-trained-transformer-bert-base-uncased/', num_labels=1)
 
 # load pre-trained(x2) weights
 # Bert_trans_model.load_weights('transformer_model_weights.h5')
@@ -231,13 +240,15 @@ Bert_trans_model = TFBertForSequenceClassification.from_pretrained('pre-trained-
 my_loss = tf.keras.losses.BinaryCrossentropy(from_logits=True)
 
 optimizer = tf.keras.optimizers.Adam(learning_rate=1e-5)
-Bert_trans_model.compile(loss=my_loss, optimizer=optimizer, metrics=['accuracy', tf.keras.metrics.AUC(from_logits = True)])
+Bert_trans_model.compile(loss=my_loss, optimizer=optimizer, metrics=[
+                         'accuracy', tf.keras.metrics.AUC(from_logits=True)])
 
 # callback = tf.keras.callbacks.EarlyStopping(
 #     monitor='val_loss', patience=2, restore_best_weights=True)
 
 # if you get GPU 'Resource exhausted: failed to allocate memory', reduce batch_size
-history = Bert_trans_model.fit(X_train_tokenized_ids, y_train1, validation_data = (X_valid_tokenized_ids, y_valid1), epochs = 2, batch_size = 4)
+history = Bert_trans_model.fit(X_train_tokenized_ids, y_train1, validation_data=(
+    X_valid_tokenized_ids, y_valid1), epochs=2, batch_size=4)
 
 # Epoch 1/4
 # 1523/1523 [==============================] - 535s 352ms/step - loss: 0.4728 - accuracy: 0.7714 - auc: 0.8444 - val_loss: 0.4060 - val_accuracy: 0.8313 - val_auc: 0.8917
@@ -249,34 +260,32 @@ history = Bert_trans_model.fit(X_train_tokenized_ids, y_train1, validation_data 
 # 1523/1523 [==============================] - 514s 337ms/step - loss: 0.1863 - accuracy: 0.9342 - auc: 0.9717 - val_loss: 0.4586 - val_accuracy: 0.8372 - val_auc: 0.8821
 
 
-
-
 """# save the model"""
 
 # Bert_trans_model.save_weights('transformer_model_weights.h5')
 
 
-#%% predict
+# %% predict
 
 def sigmoid(x):
     return 1 / (1 + np.exp(-x))
 
+
 prediction = Bert_trans_model.predict(X_test_tokenized_ids).logits    # logits
-prediction = sigmoid(prediction)    #  apply sigmoid
+prediction = sigmoid(prediction)  # apply sigmoid
 prediction_bool = (prediction > 0.5).astype(int)
 prediction_bool = prediction_bool.squeeze()
-test_df = pd.read_csv ("test.csv", header = [0])
-transformer_pred = pd.Series(prediction_bool, index = test_df['id'], name = 'target')
+test_df = pd.read_csv("test.csv", header=[0])
+transformer_pred = pd.Series(
+    prediction_bool, index=test_df['id'], name='target')
 transformer_pred.to_csv('transformer_pred.csv')
 
 
 # 0.83021
 
 
-
 # tf.keras.backend.clear_session()
 
-# from numba import cuda 
+# from numba import cuda
 # device = cuda.get_current_device()
 # device.reset()
-

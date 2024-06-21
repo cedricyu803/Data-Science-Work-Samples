@@ -118,33 +118,39 @@ Refer to the pinned threads in Week 4's discussion forum when there is something
 """
 
 
-#%% Preamble
+# %% Preamble
 
-import pandas as pd
 # Make the output look better
+import os
+import re
+
+import matplotlib.pyplot as plt
+import numpy as np
+import pandas as pd
+import seaborn as sns
+from statsmodels.graphics.tsaplots import plot_acf, plot_pacf
+
 pd.set_option('display.max_rows', 500)
 pd.set_option('display.max_columns', 500)
 # pd.set_option('display.width', 1000)
-pd.options.mode.chained_assignment = None  # default='warn' # ignores warning about dropping columns inplace
-import numpy as np
-import matplotlib.pyplot as plt
-import re
-import seaborn as sns
+# default='warn' # ignores warning about dropping columns inplace
+pd.options.mode.chained_assignment = None
 
-import os
 os.chdir(r'C:\Users\Cedric Yu\Desktop\Works\2_detroit_blight_ticket_classification')
 
 
 # !!!
-#%% load datetime-processed training set
+# %% load datetime-processed training set
 
 
 # get training set column names
-train_cols_new = pd.read_csv('engineered_datasets/train_df_datetime.csv', nrows=0).columns
+train_cols_new = pd.read_csv(
+    'engineered_datasets/train_df_datetime.csv', nrows=0).columns
 train_cols_new = train_cols_new.drop('Unnamed: 0').to_list()
 
 # import datetime-processed training dataset
-train_df_raw = pd.read_csv('engineered_datasets/train_df_datetime.csv', low_memory = True, usecols = train_cols_new, dtype = {'zip_code': str, 'non_us_str_code': str, 'grafitti_status': str})
+train_df_raw = pd.read_csv('engineered_datasets/train_df_datetime.csv', low_memory=True,
+                           usecols=train_cols_new, dtype={'zip_code': str, 'non_us_str_code': str, 'grafitti_status': str})
 
 
 # train_df_raw.shape
@@ -153,54 +159,54 @@ train_df_raw = pd.read_csv('engineered_datasets/train_df_datetime.csv', low_memo
 train_df = train_df_raw.copy()
 
 # import datetime-processed test dataset
-test_df = pd.read_csv('engineered_datasets/test_df_datetime.csv', dtype = {'zip_code': str, 'non_us_str_code': str, 'grafitti_status': str, 'violation_zip_code': str, 'mailing_address_str_number': str})
-test_df.drop(['Unnamed: 0'], axis = 1, inplace = True)
+test_df = pd.read_csv('engineered_datasets/test_df_datetime.csv', dtype={
+                      'zip_code': str, 'non_us_str_code': str, 'grafitti_status': str, 'violation_zip_code': str, 'mailing_address_str_number': str})
+test_df.drop(['Unnamed: 0'], axis=1, inplace=True)
 # (61001, 35)
 
 
-
-#%% general observations
+# %% general observations
 
 train_df.info()
 # <class 'pandas.core.frame.DataFrame'>
 # RangeIndex: 250306 entries, 0 to 250305
 # Data columns (total 34 columns):
-#  #   Column                      Non-Null Count   Dtype         
-# ---  ------                      --------------   -----         
-#  0   ticket_id                   250306 non-null  int64         
-#  1   agency_name                 250306 non-null  object        
-#  2   inspector_name              250306 non-null  object        
-#  3   violator_name               250272 non-null  object        
-#  4   violation_street_number     250306 non-null  float64       
-#  5   violation_street_name       250306 non-null  object        
-#  6   violation_zip_code          0 non-null       float64       
-#  7   mailing_address_str_number  246704 non-null  float64       
-#  8   mailing_address_str_name    250302 non-null  object        
-#  9   city                        250306 non-null  object        
-#  10  state                       250213 non-null  object        
-#  11  zip_code                    250305 non-null  object        
-#  12  non_us_str_code             3 non-null       object        
-#  13  country                     250306 non-null  object        
+#  #   Column                      Non-Null Count   Dtype
+# ---  ------                      --------------   -----
+#  0   ticket_id                   250306 non-null  int64
+#  1   agency_name                 250306 non-null  object
+#  2   inspector_name              250306 non-null  object
+#  3   violator_name               250272 non-null  object
+#  4   violation_street_number     250306 non-null  float64
+#  5   violation_street_name       250306 non-null  object
+#  6   violation_zip_code          0 non-null       float64
+#  7   mailing_address_str_number  246704 non-null  float64
+#  8   mailing_address_str_name    250302 non-null  object
+#  9   city                        250306 non-null  object
+#  10  state                       250213 non-null  object
+#  11  zip_code                    250305 non-null  object
+#  12  non_us_str_code             3 non-null       object
+#  13  country                     250306 non-null  object
 #  14  ticket_issued_date          250306 non-null  datetime64[ns]
 #  15  hearing_date                237815 non-null  datetime64[ns]
-#  16  violation_code              250306 non-null  object        
-#  17  violation_description       250306 non-null  object        
-#  18  disposition                 250306 non-null  object        
-#  19  fine_amount                 250305 non-null  float64       
-#  20  admin_fee                   250306 non-null  float64       
-#  21  state_fee                   250306 non-null  float64       
-#  22  late_fee                    250306 non-null  float64       
-#  23  discount_amount             250306 non-null  float64       
-#  24  clean_up_cost               250306 non-null  float64       
-#  25  judgment_amount             250306 non-null  float64       
-#  26  payment_amount              250306 non-null  float64       
-#  27  balance_due                 250306 non-null  float64       
-#  28  payment_date                41113 non-null   object        
-#  29  payment_status              250306 non-null  object        
-#  30  collection_status           36897 non-null   object        
-#  31  grafitti_status             1 non-null       object        
-#  32  compliance_detail           250306 non-null  object        
-#  33  compliance                  159880 non-null  float64       
+#  16  violation_code              250306 non-null  object
+#  17  violation_description       250306 non-null  object
+#  18  disposition                 250306 non-null  object
+#  19  fine_amount                 250305 non-null  float64
+#  20  admin_fee                   250306 non-null  float64
+#  21  state_fee                   250306 non-null  float64
+#  22  late_fee                    250306 non-null  float64
+#  23  discount_amount             250306 non-null  float64
+#  24  clean_up_cost               250306 non-null  float64
+#  25  judgment_amount             250306 non-null  float64
+#  26  payment_amount              250306 non-null  float64
+#  27  balance_due                 250306 non-null  float64
+#  28  payment_date                41113 non-null   object
+#  29  payment_status              250306 non-null  object
+#  30  collection_status           36897 non-null   object
+#  31  grafitti_status             1 non-null       object
+#  32  compliance_detail           250306 non-null  object
+#  33  compliance                  159880 non-null  float64
 # dtypes: datetime64[ns](2), float64(13), int64(1), object(18)
 # memory usage: 64.9+ MB
 
@@ -211,7 +217,7 @@ train_df['compliance'].isnull().sum()
 """
 the target label has missing values; drop them
 """
-train_df = train_df_raw[~np.isnan(train_df_raw['compliance'])] 
+train_df = train_df_raw[~np.isnan(train_df_raw['compliance'])]
 
 
 train_df.shape
@@ -406,17 +412,20 @@ Observations
 # 'ticket_id', 'violation_zip_code', 'graffiti_status'
 # ['payment_amount','payment_date','payment_status','balance_due','collection_status','compliance_detail']
 
-train_df.drop( ['payment_amount','payment_date','payment_status','balance_due','collection_status','compliance_detail'], axis = 1, inplace = True)
+train_df.drop(['payment_amount', 'payment_date', 'payment_status', 'balance_due',
+              'collection_status', 'compliance_detail'], axis=1, inplace=True)
 
-train_df.drop( ['ticket_id', 'violation_zip_code', 'grafitti_status'], axis = 1, inplace = True)
-test_df.drop( ['ticket_id', 'violation_zip_code', 'grafitti_status'], axis = 1, inplace = True)
+train_df.drop(['ticket_id', 'violation_zip_code',
+              'grafitti_status'], axis=1, inplace=True)
+test_df.drop(['ticket_id', 'violation_zip_code',
+             'grafitti_status'], axis=1, inplace=True)
 
-#%% target label
+# %% target label
 
 train_target = train_df[['compliance']].groupby(['compliance']).size()
 
-fig = plt.figure('target', dpi = 150)
-sns.barplot(x = train_target.index, y = train_target.values, color = 'skyblue')
+fig = plt.figure('target', dpi=150)
+sns.barplot(x=train_target.index, y=train_target.values, color='skyblue')
 # plt.yscale('log')
 ax = plt.gca()
 ax.set_xlabel('Compliance')
@@ -429,14 +438,15 @@ ax.spines['right'].set_visible(False)
 """# !!! class imbalance"""
 
 
-#%% ticket issue and hearing dates
+# %% ticket issue and hearing dates
 
 """
 year
 """
-train_df_year_count1 = train_df[['ticket_issued_date_year']].groupby(['ticket_issued_date_year']).size()
+train_df_year_count1 = train_df[['ticket_issued_date_year']].groupby(
+    ['ticket_issued_date_year']).size()
 train_df_year_count1
-# Out[43]: 
+# Out[43]:
 # ticket_issued_date_year
 # 1988        1
 # 2004       15
@@ -453,9 +463,11 @@ train_df = train_df[train_df['ticket_issued_date_year'] > 2004]
 """
 drop year 1988, 2004
 """
-train_df_year_count1 = train_df[['ticket_issued_date_year']].groupby(['ticket_issued_date_year']).size()
+train_df_year_count1 = train_df[['ticket_issued_date_year']].groupby(
+    ['ticket_issued_date_year']).size()
 
-test_df_year_count1 = test_df[['ticket_issued_date_year']].groupby(['ticket_issued_date_year']).size()
+test_df_year_count1 = test_df[['ticket_issued_date_year']].groupby(
+    ['ticket_issued_date_year']).size()
 test_df_year_count1
 # ticket_issued_date_year
 # 2012     8224
@@ -466,8 +478,9 @@ test_df_year_count1
 # dtype: int64
 
 
-fig = plt.figure(dpi = 150)
-sns.barplot(x = train_df_year_count1.index, y = train_df_year_count1.values, color = 'skyblue')
+fig = plt.figure(dpi=150)
+sns.barplot(x=train_df_year_count1.index,
+            y=train_df_year_count1.values, color='skyblue')
 ax = plt.gca()
 ax.set_xlabel('Year')
 # for i, p in enumerate(ax.patches):
@@ -484,8 +497,9 @@ plt.ylim(0,)
 # plt.savefig('plots/1_datetime/ticket_year_training.png', dpi = 150)
 
 
-fig = plt.figure(dpi = 150)
-sns.barplot(x = test_df_year_count1.index, y = test_df_year_count1.values, color = 'tomato')
+fig = plt.figure(dpi=150)
+sns.barplot(x=test_df_year_count1.index,
+            y=test_df_year_count1.values, color='tomato')
 ax = plt.gca()
 ax.set_xlabel('Year')
 # for i, p in enumerate(ax.patches):
@@ -502,7 +516,8 @@ plt.ylim(0,)
 # plt.savefig('plots/1_datetime/ticket_year_test.png', dpi = 150)
 
 
-train_df_year_count2 = train_df[['hearing_date_year']].groupby(['hearing_date_year']).size()
+train_df_year_count2 = train_df[['hearing_date_year']].groupby(
+    ['hearing_date_year']).size()
 train_df_year_count2
 # hearing_date_year
 # 2005.0    20227
@@ -517,7 +532,8 @@ train_df_year_count2
 # 2016.0        2
 # dtype: int64
 
-test_df_year_count2 = test_df[['hearing_date_year']].groupby(['hearing_date_year']).size()
+test_df_year_count2 = test_df[['hearing_date_year']].groupby(
+    ['hearing_date_year']).size()
 test_df_year_count2
 # hearing_date_year
 # 2012.0     7129
@@ -529,8 +545,9 @@ test_df_year_count2
 # dtype: int64
 
 
-fig = plt.figure(dpi = 150)
-sns.barplot(x = train_df_year_count2.index.astype(int), y = train_df_year_count2.values, color = 'skyblue')
+fig = plt.figure(dpi=150)
+sns.barplot(x=train_df_year_count2.index.astype(int),
+            y=train_df_year_count2.values, color='skyblue')
 ax = plt.gca()
 ax.set_xlabel('Year')
 # for i, p in enumerate(ax.patches):
@@ -547,8 +564,9 @@ plt.ylim(0,)
 # plt.savefig('plots/1_datetime/hearing_year_training.png', dpi = 150)
 
 
-fig = plt.figure(dpi = 150)
-sns.barplot(x = test_df_year_count2.index.astype(int), y = test_df_year_count2.values, color = 'tomato')
+fig = plt.figure(dpi=150)
+sns.barplot(x=test_df_year_count2.index.astype(int),
+            y=test_df_year_count2.values, color='tomato')
 ax = plt.gca()
 ax.set_xlabel('Year')
 # for i, p in enumerate(ax.patches):
@@ -574,14 +592,14 @@ auto-correlations
 """
 
 
-train_df_ticket_month_num = train_df[['ticket_month_num', 'compliance']].groupby(['ticket_month_num']).agg(np.nanmean).reset_index()
+train_df_ticket_month_num = train_df[['ticket_month_num', 'compliance']].groupby(
+    ['ticket_month_num']).agg(np.nanmean).reset_index()
 
 
 # from pandas.plotting import autocorrelation_plot
-from statsmodels.graphics.tsaplots import plot_acf, plot_pacf
 
-fig, ax = plt.subplots(dpi = 150)
-plot_acf(train_df_ticket_month_num['compliance'], color = 'skyblue', ax=ax)
+fig, ax = plt.subplots(dpi=150)
+plot_acf(train_df_ticket_month_num['compliance'], color='skyblue', ax=ax)
 ax.set_xlabel('Lag /month')
 # ax.set_ylabel(None)
 # ax.set_yticks([])
@@ -592,8 +610,8 @@ ax.set_xlabel('Lag /month')
 # plt.ylim(-0.25,)
 # plt.savefig('plots/1_datetime/ticket_training_acf.png', dpi = 150)
 
-fig, ax = plt.subplots(dpi = 150)
-plot_pacf(train_df_ticket_month_num['compliance'], color = 'skyblue', ax=ax)
+fig, ax = plt.subplots(dpi=150)
+plot_pacf(train_df_ticket_month_num['compliance'], color='skyblue', ax=ax)
 ax.set_xlabel('Lag /month')
 # ax.set_ylabel(None)
 # ax.set_yticks([])
@@ -617,7 +635,8 @@ month
 """
 
 
-train_df_month_count1 = train_df[['ticket_issued_date_month']].groupby(['ticket_issued_date_month']).size()
+train_df_month_count1 = train_df[['ticket_issued_date_month']].groupby(
+    ['ticket_issued_date_month']).size()
 # 1     12265
 # 2     13995
 # 3     15147
@@ -634,13 +653,15 @@ train_df_month_count1 = train_df[['ticket_issued_date_month']].groupby(['ticket_
 """ very close"""
 
 
-test_df_month_count1 = test_df[['ticket_issued_date_month']].groupby(['ticket_issued_date_month']).size()
+test_df_month_count1 = test_df[['ticket_issued_date_month']].groupby(
+    ['ticket_issued_date_month']).size()
 test_df_month_count1
 """ very close"""
 
 
-fig = plt.figure(dpi = 150)
-sns.barplot(x = train_df_month_count1.index, y = train_df_month_count1.values, color = 'skyblue')
+fig = plt.figure(dpi=150)
+sns.barplot(x=train_df_month_count1.index,
+            y=train_df_month_count1.values, color='skyblue')
 ax = plt.gca()
 ax.set_xlabel('Month')
 ax.set_ylabel(None)
@@ -653,7 +674,8 @@ plt.ylim(6000,)
 # plt.savefig('plots/1_datetime/ticket_month_training.png', dpi = 150)
 
 
-train_df_month_count2 = train_df[['hearing_date_month']].groupby(['hearing_date_month']).size()
+train_df_month_count2 = train_df[['hearing_date_month']].groupby(
+    ['hearing_date_month']).size()
 train_df_month_count2
 # hearing_date_month
 # 1.0      9089
@@ -670,7 +692,8 @@ train_df_month_count2
 # 12.0    15170
 # dtype: int64
 
-test_df_year_count2 = test_df[['hearing_date_year']].groupby(['hearing_date_year']).size()
+test_df_year_count2 = test_df[['hearing_date_year']].groupby(
+    ['hearing_date_year']).size()
 test_df_year_count2
 # hearing_date_year
 # 2012.0     7129
@@ -682,8 +705,9 @@ test_df_year_count2
 # dtype: int64
 
 
-fig = plt.figure(dpi = 150)
-sns.barplot(x = train_df_month_count2.index.astype(int), y = train_df_month_count2.values, color = 'skyblue')
+fig = plt.figure(dpi=150)
+sns.barplot(x=train_df_month_count2.index.astype(int),
+            y=train_df_month_count2.values, color='skyblue')
 ax = plt.gca()
 ax.set_xlabel('Month')
 # for i, p in enumerate(ax.patches):
@@ -703,12 +727,13 @@ plt.ylim(7500,)
 mean by month
 """
 
-train_df_monthly_comp1 = train_df[['ticket_issued_date_month', 'compliance']].groupby(['ticket_issued_date_month']).agg(np.nanmean).reset_index()
+train_df_monthly_comp1 = train_df[['ticket_issued_date_month', 'compliance']].groupby(
+    ['ticket_issued_date_month']).agg(np.nanmean).reset_index()
 
 
-
-fig = plt.figure(dpi = 150)
-sns.barplot(x = train_df_monthly_comp1['ticket_issued_date_month'], y = train_df_monthly_comp1['compliance'], color = 'skyblue')
+fig = plt.figure(dpi=150)
+sns.barplot(x=train_df_monthly_comp1['ticket_issued_date_month'],
+            y=train_df_monthly_comp1['compliance'], color='skyblue')
 ax = plt.gca()
 ax.set_xlabel('Month')
 # for i, p in enumerate(ax.patches):
@@ -725,12 +750,13 @@ plt.ylim(0.04,)
 # plt.savefig('plots/1_datetime/ticket_month_mean_compl_training.png', dpi = 150)
 
 
-train_df_monthly_comp2 = train_df[['hearing_date_month', 'compliance']].groupby(['hearing_date_month']).agg(np.nanmean).reset_index()
+train_df_monthly_comp2 = train_df[['hearing_date_month', 'compliance']].groupby(
+    ['hearing_date_month']).agg(np.nanmean).reset_index()
 
 
-
-fig = plt.figure(dpi = 150)
-sns.barplot(x = train_df_monthly_comp2['hearing_date_month'].astype(int), y = train_df_monthly_comp2['compliance'], color = 'skyblue')
+fig = plt.figure(dpi=150)
+sns.barplot(x=train_df_monthly_comp2['hearing_date_month'].astype(
+    int), y=train_df_monthly_comp2['compliance'], color='skyblue')
 ax = plt.gca()
 ax.set_xlabel('Month')
 # for i, p in enumerate(ax.patches):
@@ -757,16 +783,18 @@ day
 """
 
 
-train_df_day_count1 = train_df[['ticket_issued_date_day']].groupby(['ticket_issued_date_day']).size()
+train_df_day_count1 = train_df[['ticket_issued_date_day']].groupby(
+    ['ticket_issued_date_day']).size()
 """ very close"""
 
 
-fig = plt.figure(dpi = 150)
-sns.barplot(x = train_df_day_count1.index, y = train_df_day_count1.values, color = 'skyblue')
+fig = plt.figure(dpi=150)
+sns.barplot(x=train_df_day_count1.index,
+            y=train_df_day_count1.values, color='skyblue')
 ax = plt.gca()
 ax.set_xlabel('Day')
 ax.set_ylabel(None)
-ax.set_xticks([0,14,29])
+ax.set_xticks([0, 14, 29])
 ax.spines['top'].set_visible(False)
 ax.spines['right'].set_visible(False)
 # ax.spines['bottom'].set_visible(False)
@@ -775,14 +803,16 @@ plt.ylim(2000,)
 # plt.savefig('plots/1_datetime/ticket_day_training.png', dpi = 150)
 
 
-train_df_day_count2 = train_df[['hearing_date_day']].groupby(['hearing_date_day']).size()
+train_df_day_count2 = train_df[['hearing_date_day']].groupby(
+    ['hearing_date_day']).size()
 
 
-fig = plt.figure(dpi = 150)
-sns.barplot(x = train_df_day_count2.index.astype(int), y = train_df_day_count2.values, color = 'skyblue')
+fig = plt.figure(dpi=150)
+sns.barplot(x=train_df_day_count2.index.astype(int),
+            y=train_df_day_count2.values, color='skyblue')
 ax = plt.gca()
 ax.set_xlabel('Day')
-ax.set_xticks([0,14,29])
+ax.set_xticks([0, 14, 29])
 ax.set_ylabel(None)
 # ax.set_yticks([])
 ax.spines['top'].set_visible(False)
@@ -796,15 +826,16 @@ plt.ylim(2000,)
 mean by day
 """
 
-train_df_day_comp1 = train_df[['ticket_issued_date_day', 'compliance']].groupby(['ticket_issued_date_day']).agg(np.nanmean).reset_index()
+train_df_day_comp1 = train_df[['ticket_issued_date_day', 'compliance']].groupby(
+    ['ticket_issued_date_day']).agg(np.nanmean).reset_index()
 
 
-
-fig = plt.figure(dpi = 150)
-sns.barplot(x = train_df_day_comp1['ticket_issued_date_day'], y = train_df_day_comp1['compliance'], color = 'skyblue')
+fig = plt.figure(dpi=150)
+sns.barplot(x=train_df_day_comp1['ticket_issued_date_day'],
+            y=train_df_day_comp1['compliance'], color='skyblue')
 ax = plt.gca()
 ax.set_xlabel('Day')
-ax.set_xticks([0,14,29])
+ax.set_xticks([0, 14, 29])
 ax.set_ylabel(None)
 # ax.set_yticks([])
 ax.spines['top'].set_visible(False)
@@ -815,15 +846,16 @@ plt.ylim(0.06,)
 # plt.savefig('plots/1_datetime/ticket_day_mean_compl_training.png', dpi = 150)
 
 
-train_df_day_comp2 = train_df[['hearing_date_day', 'compliance']].groupby(['hearing_date_day']).agg(np.nanmean).reset_index()
+train_df_day_comp2 = train_df[['hearing_date_day', 'compliance']].groupby(
+    ['hearing_date_day']).agg(np.nanmean).reset_index()
 
 
-
-fig = plt.figure(dpi = 150)
-sns.barplot(x = train_df_day_comp2['hearing_date_day'].astype(int), y = train_df_day_comp2['compliance'], color = 'skyblue')
+fig = plt.figure(dpi=150)
+sns.barplot(x=train_df_day_comp2['hearing_date_day'].astype(
+    int), y=train_df_day_comp2['compliance'], color='skyblue')
 ax = plt.gca()
 ax.set_xlabel('Day')
-ax.set_xticks([0,14,29])
+ax.set_xticks([0, 14, 29])
 ax.set_ylabel(None)
 # ax.set_yticks([])
 ax.spines['top'].set_visible(False)
@@ -845,12 +877,17 @@ weekday
 """
 
 
-train_df_weekday_count1 = train_df[['ticket_issued_date_weekday']].groupby(['ticket_issued_date_weekday']).size().reset_index()
-train_df_weekday_count1['ticket_issued_date_weekday'] =train_df_weekday_count1['ticket_issued_date_weekday'].replace(dict(zip(range(0, 7), ['Mon', 'Tue', 'Wed', 'Thurs', 'Fri', 'Sat', 'Sun'])))
-train_df_weekday_count1.set_index('ticket_issued_date_weekday', inplace = True)
+train_df_weekday_count1 = train_df[['ticket_issued_date_weekday']].groupby(
+    ['ticket_issued_date_weekday']).size().reset_index()
+train_df_weekday_count1['ticket_issued_date_weekday'] = \
+    train_df_weekday_count1['ticket_issued_date_weekday'].replace(
+        dict(zip(range(0, 7), ['Mon', 'Tue', 'Wed', 'Thurs', 'Fri',
+                               'Sat', 'Sun'])))
+train_df_weekday_count1.set_index('ticket_issued_date_weekday', inplace=True)
 
-fig = plt.figure(dpi = 150)
-sns.barplot(x = train_df_weekday_count1.index, y = train_df_weekday_count1.values.squeeze(), color = 'skyblue')
+fig = plt.figure(dpi=150)
+sns.barplot(x=train_df_weekday_count1.index,
+            y=train_df_weekday_count1.values.squeeze(), color='skyblue')
 ax = plt.gca()
 ax.set_xlabel('Weekday')
 ax.set_ylabel(None)
@@ -862,13 +899,18 @@ ax.spines['right'].set_visible(False)
 # plt.savefig('plots/1_datetime/ticket_weekday_training.png', dpi = 150)
 
 
-train_df_weekday_count2 = train_df[['hearing_date_weekday']].groupby(['hearing_date_weekday']).size().reset_index()
-train_df_weekday_count2['hearing_date_weekday'] =train_df_weekday_count2['hearing_date_weekday'].replace(dict(zip(range(0, 7), ['Mon', 'Tue', 'Wed', 'Thurs', 'Fri', 'Sat', 'Sun'])))
-train_df_weekday_count2.set_index('hearing_date_weekday', inplace = True)
+train_df_weekday_count2 = train_df[['hearing_date_weekday']].groupby(
+    ['hearing_date_weekday']).size().reset_index()
+train_df_weekday_count2['hearing_date_weekday'] = train_df_weekday_count2[
+    'hearing_date_weekday'].replace(
+    dict(zip(range(0, 7), ['Mon', 'Tue', 'Wed', 'Thurs', 'Fri',
+                           'Sat', 'Sun'])))
+train_df_weekday_count2.set_index('hearing_date_weekday', inplace=True)
 
 
-fig = plt.figure(dpi = 150)
-sns.barplot(x = train_df_weekday_count2.index, y = train_df_weekday_count2.values.squeeze(), color = 'skyblue')
+fig = plt.figure(dpi=150)
+sns.barplot(x=train_df_weekday_count2.index,
+            y=train_df_weekday_count2.values.squeeze(), color='skyblue')
 ax = plt.gca()
 ax.set_xlabel('Weekday')
 ax.set_ylabel(None)
@@ -884,13 +926,19 @@ plt.ylim(2000,)
 mean by weekday
 """
 
-train_df_weekday_comp1 = train_df[['ticket_issued_date_weekday', 'compliance']].groupby(['ticket_issued_date_weekday']).agg(np.nanmean).reset_index()
-train_df_weekday_comp1['ticket_issued_date_weekday'] =train_df_weekday_comp1['ticket_issued_date_weekday'].replace(dict(zip(range(0, 7), ['Mon', 'Tue', 'Wed', 'Thurs', 'Fri', 'Sat', 'Sun'])))
-train_df_weekday_comp1.set_index('ticket_issued_date_weekday', inplace = True)
+train_df_weekday_comp1 = train_df[['ticket_issued_date_weekday',
+                                   'compliance']].groupby(
+    ['ticket_issued_date_weekday']).agg(np.nanmean).reset_index()
+train_df_weekday_comp1['ticket_issued_date_weekday'] = train_df_weekday_comp1[
+    'ticket_issued_date_weekday'].replace(
+    dict(zip(range(0, 7), ['Mon', 'Tue', 'Wed', 'Thurs', 'Fri',
+                           'Sat', 'Sun'])))
+train_df_weekday_comp1.set_index('ticket_issued_date_weekday', inplace=True)
 
 
-fig = plt.figure(dpi = 150)
-sns.barplot(x = train_df_weekday_comp1.index, y = train_df_weekday_comp1.values.squeeze(), color = 'skyblue')
+fig = plt.figure(dpi=150)
+sns.barplot(x=train_df_weekday_comp1.index,
+            y=train_df_weekday_comp1.values.squeeze(), color='skyblue')
 ax = plt.gca()
 ax.set_xlabel('Weekday')
 ax.set_ylabel(None)
@@ -900,18 +948,23 @@ ax.spines['right'].set_visible(False)
 # ax.spines['bottom'].set_visible(False)
 # ax.spines['left'].set_visible(False)
 plt.ylim(0.06,)
-# plt.savefig('plots/1_datetime/ticket_weekday_mean_compl_training.png', dpi = 150)
+# plt.savefig('plots/1_datetime/ticket_weekday_mean_compl_training.png',
+# dpi = 150)
 
 
+train_df_weekday_comp2 = train_df[['hearing_date_weekday',
+                                   'compliance']].groupby(
+    ['hearing_date_weekday']).agg(np.nanmean).reset_index()
+train_df_weekday_comp2['hearing_date_weekday'] = train_df_weekday_comp2[
+    'hearing_date_weekday'].replace(
+    dict(zip(range(0, 7), ['Mon', 'Tue', 'Wed', 'Thurs', 'Fri',
+                           'Sat', 'Sun'])))
+train_df_weekday_comp2.set_index('hearing_date_weekday', inplace=True)
 
-train_df_weekday_comp2 = train_df[['hearing_date_weekday', 'compliance']].groupby(['hearing_date_weekday']).agg(np.nanmean).reset_index()
-train_df_weekday_comp2['hearing_date_weekday'] =train_df_weekday_comp2['hearing_date_weekday'].replace(dict(zip(range(0, 7), ['Mon', 'Tue', 'Wed', 'Thurs', 'Fri', 'Sat', 'Sun'])))
-train_df_weekday_comp2.set_index('hearing_date_weekday', inplace = True)
 
-
-
-fig = plt.figure(dpi = 150)
-sns.barplot(x = train_df_weekday_comp2.index, y = train_df_weekday_comp2.values.squeeze(), color = 'skyblue')
+fig = plt.figure(dpi=150)
+sns.barplot(x=train_df_weekday_comp2.index,
+            y=train_df_weekday_comp2.values.squeeze(), color='skyblue')
 ax = plt.gca()
 ax.set_xlabel('Weekday')
 # ax.set_xticks([0,14,29])
@@ -922,7 +975,8 @@ ax.spines['right'].set_visible(False)
 # ax.spines['bottom'].set_visible(False)
 # ax.spines['left'].set_visible(False)
 # plt.ylim(0.04,)
-# plt.savefig('plots/1_datetime/hearing_weekday_mean_compl_training.png', dpi = 150)
+# plt.savefig('plots/1_datetime/hearing_weekday_mean_compl_training.png',
+# dpi = 150)
 
 
 """
@@ -935,12 +989,14 @@ hour
 """
 
 
-train_df_hour_count1 = train_df[['ticket_issued_date_hour']].groupby(['ticket_issued_date_hour']).size()
+train_df_hour_count1 = train_df[['ticket_issued_date_hour']].groupby(
+    ['ticket_issued_date_hour']).size()
 """ very close"""
 
 
-fig = plt.figure(dpi = 150)
-sns.barplot(x = train_df_hour_count1.index, y = train_df_hour_count1.values, color = 'skyblue')
+fig = plt.figure(dpi=150)
+sns.barplot(x=train_df_hour_count1.index,
+            y=train_df_hour_count1.values, color='skyblue')
 ax = plt.gca()
 ax.set_xlabel('Hour')
 ax.set_ylabel(None)
@@ -951,11 +1007,13 @@ ax.spines['right'].set_visible(False)
 # plt.savefig('plots/1_datetime/ticket_hour_training.png', dpi = 150)
 
 
-train_df_hour_count2 = train_df[['hearing_date_hour']].groupby(['hearing_date_hour']).size()
+train_df_hour_count2 = train_df[['hearing_date_hour']].groupby(
+    ['hearing_date_hour']).size()
 
 
-fig = plt.figure(dpi = 150)
-sns.barplot(x = train_df_hour_count2.index.astype(int), y = train_df_hour_count2.values, color = 'skyblue')
+fig = plt.figure(dpi=150)
+sns.barplot(x=train_df_hour_count2.index.astype(int),
+            y=train_df_hour_count2.values, color='skyblue')
 ax = plt.gca()
 ax.set_xlabel('Hour')
 ax.set_ylabel(None)
@@ -971,12 +1029,14 @@ plt.ylim(2000,)
 mean by hour
 """
 
-train_df_hour_comp1 = train_df[['ticket_issued_date_hour', 'compliance']].groupby(['ticket_issued_date_hour']).agg(np.nanmean).reset_index()
+train_df_hour_comp1 = (train_df[['ticket_issued_date_hour', 'compliance']]
+                       .groupby(['ticket_issued_date_hour'])
+                       .agg(np.nanmean).reset_index())
 
 
-
-fig = plt.figure(dpi = 150)
-sns.barplot(x = train_df_hour_comp1['ticket_issued_date_hour'], y = train_df_hour_comp1['compliance'], color = 'skyblue')
+fig = plt.figure(dpi=150)
+sns.barplot(x=train_df_hour_comp1['ticket_issued_date_hour'],
+            y=train_df_hour_comp1['compliance'], color='skyblue')
 ax = plt.gca()
 ax.set_xlabel('Hour')
 ax.set_ylabel(None)
@@ -986,15 +1046,17 @@ ax.spines['right'].set_visible(False)
 # ax.spines['bottom'].set_visible(False)
 # ax.spines['left'].set_visible(False)
 plt.ylim(0.06,)
-# plt.savefig('plots/1_datetime/ticket_hour_mean_compl_training.png', dpi = 150)
+# plt.savefig('plots/1_datetime/ticket_hour_mean_compl_training.png',
+# dpi = 150)
 
 
-train_df_hour_comp2 = train_df[['hearing_date_hour', 'compliance']].groupby(['hearing_date_hour']).agg(np.nanmean).reset_index()
+train_df_hour_comp2 = train_df[['hearing_date_hour', 'compliance']].groupby(
+    ['hearing_date_hour']).agg(np.nanmean).reset_index()
 
 
-
-fig = plt.figure(dpi = 150)
-sns.barplot(x = train_df_hour_comp2['hearing_date_hour'].astype(int), y = train_df_hour_comp2['compliance'], color = 'skyblue')
+fig = plt.figure(dpi=150)
+sns.barplot(x=train_df_hour_comp2['hearing_date_hour'].astype(
+    int), y=train_df_hour_comp2['compliance'], color='skyblue')
 ax = plt.gca()
 ax.set_xlabel('Hour')
 ax.set_ylabel(None)
@@ -1004,7 +1066,8 @@ ax.spines['right'].set_visible(False)
 # ax.spines['bottom'].set_visible(False)
 # ax.spines['left'].set_visible(False)
 # plt.ylim(0.04,)
-# plt.savefig('plots/1_datetime/hearing_hour_mean_compl_training.png', dpi = 150)
+# plt.savefig('plots/1_datetime/hearing_hour_mean_compl_training.png',
+# dpi = 150)
 
 
 """
@@ -1013,13 +1076,12 @@ freq for hearing hour
 """
 
 
-
-#%% mailing address
+# %% mailing address
 
 address_cols = [
-'mailing_address_str_number',
-       'mailing_address_str_name', 'city', 'state', 'zip_code',
-       'non_us_str_code', 'country'
+    'mailing_address_str_number',
+    'mailing_address_str_name', 'city', 'state', 'zip_code',
+    'non_us_str_code', 'country'
 ]
 
 
@@ -1031,43 +1093,43 @@ len(train_df[train_df['country'] != 'USA'])
 
 train_df[train_df['country'] != 'USA'][address_cols]
 #         mailing_address_str_number      mailing_address_str_name  \
-# 160652                         2.0                   ANTIQUE DR.   
-# 177864                       238.0            ROBINA TOWN CENTER   
-# 211755                     25359.0                   16TH AVENUE   
-# 216567                         1.0                        TAIMOR   
-# 216568                         1.0                     TAIMOR ST   
-# 216927                        47.0                 ELMONT  DRIVE   
-# 222230                         NaN                   P O BOX 717   
-# 226259                         NaN         ROSA-REINGLASS-STEIG2   
-# 226609                        65.0  WYNFORD HTS. CRES, STE. 1905   
-# 226610                        65.0  WYNFORD HTS. CRES, STE. 1905   
-# 236075                       111.0                     LIVERPOOL   
+# 160652                         2.0                   ANTIQUE DR.
+# 177864                       238.0            ROBINA TOWN CENTER
+# 211755                     25359.0                   16TH AVENUE
+# 216567                         1.0                        TAIMOR
+# 216568                         1.0                     TAIMOR ST
+# 216927                        47.0                 ELMONT  DRIVE
+# 222230                         NaN                   P O BOX 717
+# 226259                         NaN         ROSA-REINGLASS-STEIG2
+# 226609                        65.0  WYNFORD HTS. CRES, STE. 1905
+# 226610                        65.0  WYNFORD HTS. CRES, STE. 1905
+# 236075                       111.0                     LIVERPOOL
 
 #                                            city state    zip_code  \
-# 160652                            RICHMOND HILL    ON      L4E3V8   
-# 177864                               QUEENSLAND    QL        4226   
-# 211755                               ALDERGROVE    BC      V4W2R7   
-# 216567  ST. FATIMA SQ. HELIOPOLIS, CAIRO, EGYPT   NaN       11361   
-# 216568  ST. FATIMA SQ. HELIOPOLIS, CAIRO, EGYPT   NaN       11361   
-# 216927                 CALGARY, ALBERTA, CANADA   NaN     T3H-4X8   
-# 222230                                SUN RIDGE    ON      POAIZO   
-# 226259                                   BERLIN    BL       13585   
-# 226609                                  TORONTO    ON  M3C1L-7000   
-# 226610                                  TORONTO    ON  M3C1L-7000   
-# 236075                      ST ROSEBAY AUSTRALI   NaN     NSW2029   
+# 160652                            RICHMOND HILL    ON      L4E3V8
+# 177864                               QUEENSLAND    QL        4226
+# 211755                               ALDERGROVE    BC      V4W2R7
+# 216567  ST. FATIMA SQ. HELIOPOLIS, CAIRO, EGYPT   NaN       11361
+# 216568  ST. FATIMA SQ. HELIOPOLIS, CAIRO, EGYPT   NaN       11361
+# 216927                 CALGARY, ALBERTA, CANADA   NaN     T3H-4X8
+# 222230                                SUN RIDGE    ON      POAIZO
+# 226259                                   BERLIN    BL       13585
+# 226609                                  TORONTO    ON  M3C1L-7000
+# 226610                                  TORONTO    ON  M3C1L-7000
+# 236075                      ST ROSEBAY AUSTRALI   NaN     NSW2029
 
-#         non_us_str_code country  
-# 160652              NaN    Cana  
-# 177864      , Australia    Aust  
-# 211755              NaN    Cana  
-# 216567              NaN    Egyp  
-# 216568              NaN    Egyp  
-# 216927              NaN    Cana  
-# 222230              NaN    Cana  
-# 226259              NaN    Germ  
-# 226609  ONTARIO, Canada    Cana  
-# 226610  ONTARIO, Canada    Cana  
-# 236075              NaN    Aust  
+#         non_us_str_code country
+# 160652              NaN    Cana
+# 177864      , Australia    Aust
+# 211755              NaN    Cana
+# 216567              NaN    Egyp
+# 216568              NaN    Egyp
+# 216927              NaN    Cana
+# 222230              NaN    Cana
+# 226259              NaN    Germ
+# 226609  ONTARIO, Canada    Cana
+# 226610  ONTARIO, Canada    Cana
+# 236075              NaN    Aust
 """# really not in the US"""
 
 train_df[train_df['country'] == 'USA']['state'].unique()
@@ -1085,27 +1147,29 @@ train_df['zip_code'].head(20)
 """zip_code has non-5-digit instances"""
 
 """look at zipcodes where 'state' is really one of the 50 (+DC) states """
-US_states = ["AL", "AK", "AZ", "AR", "CA", "CO", "CT", "DC", "DE", "FL", "GA", 
-              "HI", "ID", "IL", "IN", "IA", "KS", "KY", "LA", "ME", "MD", 
-              "MA", "MI", "MN", "MS", "MO", "MT", "NE", "NV", "NH", "NJ", 
-              "NM", "NY", "NC", "ND", "OH", "OK", "OR", "PA", "RI", "SC", 
-              "SD", "TN", "TX", "UT", "VT", "VA", "WA", "WV", "WI", "WY"]
+US_states = ["AL", "AK", "AZ", "AR", "CA", "CO", "CT", "DC", "DE", "FL", "GA",
+             "HI", "ID", "IL", "IN", "IA", "KS", "KY", "LA", "ME", "MD",
+             "MA", "MI", "MN", "MS", "MO", "MT", "NE", "NV", "NH", "NJ",
+             "NM", "NY", "NC", "ND", "OH", "OK", "OR", "PA", "RI", "SC",
+             "SD", "TN", "TX", "UT", "VT", "VA", "WA", "WV", "WI", "WY"]
 
 
 train_df['zip_code'] = train_df['zip_code'].fillna('nfd')
 
-def country_zip_func0(row) : 
+
+def country_zip_func0(row):
     if row['state'] in US_states:
         row['zip_len'] = len(row['zip_code'])
     else:
-            row['zip_len'] = -1
+        row['zip_len'] = -1
     return row
+
 
 train_df = train_df.apply(country_zip_func0, axis=1)
 
 
 train_df['zip_len'][train_df['zip_len'] != 5]
-# Out[164]: 
+# Out[164]:
 # 455       6
 # 654       4
 # 764       3
@@ -1123,7 +1187,7 @@ train_df['zip_len'].unique()
 # array([ 5,  6,  4,  3,  9,  1, -1,  2, 10,  7], dtype=int64)
 
 train_df[train_df['zip_len'] == 9]['zip_code'].head()
-# Out[118]: 
+# Out[118]:
 # 2081     480210433
 # 11199    190403430
 # 13261    482355555
@@ -1133,7 +1197,7 @@ train_df[train_df['zip_len'] == 9]['zip_code'].head()
 
 
 train_df[train_df['zip_len'] == 10]['zip_code'].head()
-# Out[140]: 
+# Out[140]:
 # 42394     92637-2854
 # 58955     60654-6939
 # 108365    48021-1319
@@ -1142,14 +1206,14 @@ train_df[train_df['zip_len'] == 10]['zip_code'].head()
 # Name: zip_code, dtype: object
 
 train_df[train_df['zip_len'] == 7][address_cols]
-# Out[168]: 
+# Out[168]:
 #         mailing_address_str_number mailing_address_str_name    city state  \
-# 57355                          1.0           CITY BLVD WEST  ORANGE    CA   
-# 114955                        11.0              COUNTRY RD.  ORANGE    CA   
+# 57355                          1.0           CITY BLVD WEST  ORANGE    CA
+# 114955                        11.0              COUNTRY RD.  ORANGE    CA
 
-#        zip_code non_us_str_code country  
-# 57355   9288689             NaN     USA  
-# 114955  4892868             NaN     USA  
+#        zip_code non_us_str_code country
+# 57355   9288689             NaN     USA
+# 114955  4892868             NaN     USA
 
 """zip codes should be 92868"""
 
@@ -1158,10 +1222,7 @@ train_df[train_df['zip_len'] == 6][address_cols].head()
 """the given zip codes do not match the address, but there aren't many of them, nvm"""
 
 
-
 """ instances in any of the US states, with 9 or 10 digit for zip_code, make sense"""
-
-
 
 
 train_df_state = train_df[['state']].groupby(['state']).size()
@@ -1169,19 +1230,17 @@ train_df_state
 # mostly MI, obviously
 
 
-
-
 # !!!
 """
 # many mailing addresses, few (11) outside the US
 # Many mis-categorised countries into 'USA': country just USA or not
-# zip_code needs processing: just take first 5 digits using regex, including those wrong zip codes (6-7 digits) which are not many
+# zip_code needs processing: just take first 5 digits using regex, including
+# those wrong zip codes (6-7 digits) which are not many
 frequency encode state
 """
 
 
-
-#%% violation_code and violation_description
+# %% violation_code and violation_description
 
 
 """
@@ -1189,10 +1248,7 @@ frequency encode state
 """
 
 
-
-
-#%% fine and fees
-
+# %% fine and fees
 
 
 """
@@ -1203,21 +1259,17 @@ frequency encode state
 """
 
 # !!!
-#%% dropping outliers
+# %% dropping outliers
 
-train_df = train_df[~np.isnan(train_df['compliance'])] 
-train_df.drop( ['payment_amount','payment_date','payment_status','balance_due','collection_status','compliance_detail'], axis = 1, inplace = True)
-train_df.drop( ['ticket_id', 'violation_zip_code', 'grafitti_status'], axis = 1, inplace = True)
+train_df = train_df[~np.isnan(train_df['compliance'])]
+train_df.drop(['payment_amount', 'payment_date', 'payment_status',
+               'balance_due',
+              'collection_status', 'compliance_detail'], axis=1, inplace=True)
+train_df.drop(['ticket_id', 'violation_zip_code',
+              'grafitti_status'], axis=1, inplace=True)
 train_df = train_df[train_df['ticket_issued_date_year'] > 2004]
 train_df['zip_code'] = train_df['zip_code'].fillna('nfd')
 
 
-
-test_df.drop( ['ticket_id', 'violation_zip_code', 'grafitti_status'], axis = 1, inplace = True)
-
-
-
-
-
-
-
+test_df.drop(['ticket_id', 'violation_zip_code',
+             'grafitti_status'], axis=1, inplace=True)

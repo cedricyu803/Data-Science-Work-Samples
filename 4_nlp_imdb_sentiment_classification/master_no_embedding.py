@@ -57,7 +57,7 @@ sentiment - Sentiment of the review; 1 for positive reviews and 0 for negative r
 review - Text of the review
 """
 
-#%% This file
+# %% This file
 
 """
 First trial: without using embedding vectors
@@ -65,7 +65,7 @@ uses CountVectorizer and TfidfVectorizer from nltk
 
 """
 
-#%% Workflow
+# %% Workflow
 
 """
 # load datasets and clean text
@@ -83,46 +83,55 @@ uses CountVectorizer and TfidfVectorizer from nltk
 """
 
 
-#%% Preamble
+# %% Preamble
 
-import pandas as pd
 # Make the output look better
+from sklearn.feature_extraction.text import TfidfVectorizer
+from xgboost import XGBClassifier
+from sklearn.naive_bayes import MultinomialNB
+from sklearn.linear_model import LogisticRegression
+from sklearn.feature_extraction.text import CountVectorizer
+from sklearn.metrics import roc_auc_score
+from sklearn.model_selection import train_test_split
+from nltk.corpus import stopwords
+import nltk
+import re
+import os
+import seaborn as sns
+import matplotlib.pyplot as plt
+import numpy as np
+import pandas as pd
+from bs4 import BeautifulSoup
 pd.set_option('display.max_rows', 500)
 pd.set_option('display.max_columns', 500)
 # pd.set_option('display.width', 1000)
 pd.set_option('display.max_colwidth', None)
-pd.options.mode.chained_assignment = None  # default='warn' # ignores warning about dropping columns inplace
-import numpy as np
-import matplotlib.pyplot as plt
+# default='warn' # ignores warning about dropping columns inplace
+pd.options.mode.chained_assignment = None
 # import re
-import seaborn as sns
 
-import os
 os.chdir(r'C:\Users\Cedric Yu\Desktop\Works\8_nlp_imdb_sentiment_classification')
 
-#%% load dataset labeledTrainData.tsv and testData.tsv
+# %% load dataset labeledTrainData.tsv and testData.tsv
 
-labeledTrainData = pd.read_csv ("labeledTrainData.tsv", sep = '\t', header = [0])
-testData = pd.read_csv ("testData.tsv", sep = '\t', header = [0])
+labeledTrainData = pd.read_csv("labeledTrainData.tsv", sep='\t', header=[0])
+testData = pd.read_csv("testData.tsv", sep='\t', header=[0])
 
 
-#%% preprocessing, tokenisation and padding
+# %% preprocessing, tokenisation and padding
 
-import re
-import nltk
-from nltk.corpus import stopwords
 
 # for getting rid of html syntax
 # Import BeautifulSoup into your workspace
-from bs4 import BeautifulSoup    
 
 """preprocess text by removing html syntax, unimportant punctuation marks (e.g. ..., --), lowering case, and lemmatizing. Then tokenise and pad to max_len"""
 
 WNlemma_n = nltk.WordNetLemmatizer()
 
-def text_preprocess(text, pad = False, max_len=3000):
+
+def text_preprocess(text, pad=False, max_len=3000):
     # remove html syntax
-    text1 = BeautifulSoup(text).get_text() 
+    text1 = BeautifulSoup(text).get_text()
     # get rid of unimportant punctuation marks
     # !!! get rid of apostrophe too (and single quotation marks)
     # text1 = re.sub(r'([^\d\w\'\s\.\-]+|[-\.]{2,})', ' ', text1)
@@ -144,33 +153,29 @@ def text_preprocess(text, pad = False, max_len=3000):
     return text1
 
 
-
-def pd_text_preprocess(row, pad = False, max_len=3000):
-    row['review_preprocessed'] = text_preprocess(row['review'], pad = pad, max_len = max_len)
+def pd_text_preprocess(row, pad=False, max_len=3000):
+    row['review_preprocessed'] = text_preprocess(
+        row['review'], pad=pad, max_len=max_len)
     row['length'] = len(row['review_preprocessed'])
     return row
 
 
 # no padding
-labeledTrainData = labeledTrainData.apply(pd_text_preprocess, axis = 1)
+labeledTrainData = labeledTrainData.apply(pd_text_preprocess, axis=1)
 
-testData = testData.apply(pd_text_preprocess, axis = 1)
+testData = testData.apply(pd_text_preprocess, axis=1)
 X_test = testData['review_preprocessed']
 
-#%% train-validation split
+# %% train-validation split
 
-from sklearn.model_selection import train_test_split
 
-X_train, X_valid, y_train, y_valid = train_test_split(labeledTrainData['review_preprocessed'], labeledTrainData['sentiment'], random_state=0, train_size = 0.8)
+X_train, X_valid, y_train, y_valid = train_test_split(
+    labeledTrainData['review_preprocessed'], labeledTrainData['sentiment'], random_state=0, train_size=0.8)
 
-#%% baseline models with CountVectorizer, tfidf, ngrams, and logistic regression
+# %% baseline models with CountVectorizer, tfidf, ngrams, and logistic regression
 """No embedding vector"""
 
 """# CountVectorizer"""
-from sklearn.metrics import roc_auc_score
-from sklearn.feature_extraction.text import CountVectorizer
-
-from sklearn.linear_model import LogisticRegression
 
 
 """# grid search"""
@@ -186,19 +191,20 @@ from sklearn.linear_model import LogisticRegression
 #         vect_count0 = CountVectorizer(min_df=min_df, max_df=max_df, stop_words='english', ngram_range = (1,5)).fit(X_train)
 #         # vect_count.get_feature_names()[::2000]
 #         X_train_count_vectorised0 = vect_count0.transform(X_train)
-        
+
 #         # logistic regression
 #         model_count0 = LogisticRegression(max_iter = 10000)
 #         model_count0.fit(X_train_count_vectorised0, y_train)
-        
+
 #         # Predict the transformed test documents
 #         predictions_count0 = model_count0.predict(vect_count0.transform(X_valid))
 #         AUC_count.append((min_df, max_df, roc_auc_score(y_valid, predictions_count0)))
-        
+
 
 # Fit the CountVectorizer to the training data
 # minimum document frequency of 10 and max_df = 0.2, ignore stop words, ngram_range = (1,5)
-vect_count = CountVectorizer(min_df=0, max_df=0.2, stop_words='english', ngram_range = (1,5)).fit(X_train)
+vect_count = CountVectorizer(
+    min_df=0, max_df=0.2, stop_words='english', ngram_range=(1, 5)).fit(X_train)
 # vect_count.get_feature_names()[::2000]
 X_train_count_vectorised = vect_count.transform(X_train)
 X_valid_count_vectorised = vect_count.transform(X_valid)
@@ -207,15 +213,13 @@ X_valid_count_vectorised = vect_count.transform(X_valid)
 #################################
 
 # logistic regression
-from sklearn.linear_model import LogisticRegression
 
-model_count = LogisticRegression(max_iter = 10000)
+model_count = LogisticRegression(max_iter=10000)
 model_count.fit(X_train_count_vectorised, y_train)
 
 # Predict the transformed test documents
 predictions_count = model_count.predict(X_valid_count_vectorised)
 
-from sklearn.metrics import roc_auc_score
 print('AUC: ', roc_auc_score(y_valid, predictions_count))
 # removed most punctuation marks
 # AUC:  0.8875348608511041
@@ -228,31 +232,33 @@ feature_names_count = np.array(vect_count.get_feature_names())
 sorted_coef_index_count = model_count.coef_[0].argsort()
 
 # Find the 10 smallest and 10 largest coefficients
-# The 10 largest coefficients are being indexed using [:-11:-1] 
+# The 10 largest coefficients are being indexed using [:-11:-1]
 # so the list returned is in order of largest to smallest
-print('Smallest Coefs:\n{}'.format(feature_names_count[sorted_coef_index_count[:10]]))
-print('Largest Coefs: \n{}'.format(feature_names_count[sorted_coef_index_count[:-11:-1]]))
+print('Smallest Coefs:\n{}'.format(
+    feature_names_count[sorted_coef_index_count[:10]]))
+print('Largest Coefs: \n{}'.format(
+    feature_names_count[sorted_coef_index_count[:-11:-1]]))
 # Smallest Coefs:
 # ['worst' 'awful' 'waste' 'boring' 'worse' 'terrible' 'poor' 'dull'
 #  'horrible' 'avoid']
-# Largest Coefs: 
+# Largest Coefs:
 # ['excellent' 'wonderful' 'perfect' 'favorite' 'amazing' 'best' 'enjoyed'
 #  'loved' 'fantastic' 'today']
 
 model_count_pred = model_count.predict(vect_count.transform(X_test))
-model_count_pred = pd.Series(model_count_pred, index = testData['id'], name = 'sentiment')
+model_count_pred = pd.Series(
+    model_count_pred, index=testData['id'], name='sentiment')
 model_count_pred.to_csv('y_test_pred_count_logreg.csv')
 
 #################################
 
-from sklearn.naive_bayes import MultinomialNB
 
-MNB_clf_count = MultinomialNB(alpha = 0.1)
+MNB_clf_count = MultinomialNB(alpha=0.1)
 MNB_clf_count.fit(X_train_count_vectorised, y_train)
 
 
-from sklearn.metrics import roc_auc_score
-print('AUC: ', roc_auc_score(y_valid, MNB_clf_count.predict(X_valid_count_vectorised)))
+print('AUC: ', roc_auc_score(
+    y_valid, MNB_clf_count.predict(X_valid_count_vectorised)))
 # removed most punctuation marks
 # AUC:  0.877616324481857
 # kept only alphabets, dropped stopwords
@@ -261,25 +267,23 @@ print('AUC: ', roc_auc_score(y_valid, MNB_clf_count.predict(X_valid_count_vector
 
 #################################
 
-from xgboost import XGBClassifier
 
-XGBC_model_count = XGBClassifier(eval_metric='auc', n_jobs = 6)
-XGBC_model_count.fit(X_train_count_vectorised, y_train, eval_set = [(X_train_count_vectorised, y_train), (X_valid_count_vectorised, y_valid)], early_stopping_rounds = 40)
+XGBC_model_count = XGBClassifier(eval_metric='auc', n_jobs=6)
+XGBC_model_count.fit(X_train_count_vectorised, y_train, eval_set=[(
+    X_train_count_vectorised, y_train), (X_valid_count_vectorised, y_valid)], early_stopping_rounds=40)
 
-print('AUC: ', roc_auc_score(y_valid, XGBC_model_count.predict(X_valid_count_vectorised)))
+print('AUC: ', roc_auc_score(
+    y_valid, XGBC_model_count.predict(X_valid_count_vectorised)))
 # AUC:  0.85215221739342
 
 XGBC_model_count_pred = XGBC_model_count.predict(vect_count.transform(X_test))
-XGBC_model_count_pred = pd.Series(XGBC_model_count_pred, index = testData['id'], name = 'sentiment')
+XGBC_model_count_pred = pd.Series(
+    XGBC_model_count_pred, index=testData['id'], name='sentiment')
 XGBC_model_count_pred.to_csv('y_test_pred_count_XGBC.csv')
-
-
 
 
 #################################
 """# TfidfVectorizer"""
-
-from sklearn.feature_extraction.text import TfidfVectorizer
 
 
 # min_df_list = np.arange(0,6,2)
@@ -294,11 +298,11 @@ from sklearn.feature_extraction.text import TfidfVectorizer
 #         vect_tfidf0 = TfidfVectorizer(min_df=min_df, max_df=max_df, stop_words='english', ngram_range = (1,5)).fit(X_train)
 #         # vect_tfidf.get_feature_names()[::2000]
 #         X_train_tfidf_vectorised0 = vect_tfidf0.transform(X_train)
-        
+
 #         # logistic regression
 #         model_tfidf0 = LogisticRegression(max_iter = 10000)
 #         model_tfidf0.fit(X_train_tfidf_vectorised0, y_train)
-        
+
 #         # Predict the transformed test documents
 #         predictions_tfidf0 = model_tfidf0.predict(vect_tfidf0.transform(X_valid))
 #         AUC_tfidf.append((min_df, max_df, roc_auc_score(y_valid, predictions_tfidf0)))
@@ -306,7 +310,8 @@ from sklearn.feature_extraction.text import TfidfVectorizer
 
 # Fit the TfidfVectorizer
 # minimum document frequency of 4 and max_df = 0.2, ignore stop words, ngram_range = (1,3)
-vect_tfidf = TfidfVectorizer(min_df=4, max_df=0.2, stop_words='english', ngram_range = (1,5)).fit(X_train)
+vect_tfidf = TfidfVectorizer(
+    min_df=4, max_df=0.2, stop_words='english', ngram_range=(1, 5)).fit(X_train)
 # vect_tfidf.get_feature_names()[::2000]
 X_train_tfidf_vectorised = vect_tfidf.transform(X_train)
 X_valid_tfidf_vectorised = vect_tfidf.transform(X_valid)
@@ -314,15 +319,13 @@ X_valid_tfidf_vectorised = vect_tfidf.transform(X_valid)
 #################################
 
 # logistic regression
-from sklearn.linear_model import LogisticRegression
 
-model_tfidf = LogisticRegression(max_iter = 10000)
+model_tfidf = LogisticRegression(max_iter=10000)
 model_tfidf.fit(X_train_tfidf_vectorised, y_train)
 
 # Predict the transformed test documents
 predictions_tfidf = model_tfidf.predict(vect_tfidf.transform(X_valid))
 
-from sklearn.metrics import roc_auc_score
 print('AUC: ', roc_auc_score(y_valid, predictions_tfidf))
 # removed most punctuation marks
 # AUC:  0.8938911240239601
@@ -335,55 +338,54 @@ feature_names_tfidf = np.array(vect_tfidf.get_feature_names())
 sorted_coef_index_tfidf = model_tfidf.coef_[0].argsort()
 
 # Find the 10 smallest and 10 largest coefficients
-# The 10 largest coefficients are being indexed using [:-11:-1] 
+# The 10 largest coefficients are being indexed using [:-11:-1]
 # so the list returned is in order of largest to smallest
-print('Smallest Coefs:\n{}'.format(feature_names_tfidf[sorted_coef_index_tfidf[:10]]))
-print('Largest Coefs: \n{}'.format(feature_names_tfidf[sorted_coef_index_tfidf[:-11:-1]]))
+print('Smallest Coefs:\n{}'.format(
+    feature_names_tfidf[sorted_coef_index_tfidf[:10]]))
+print('Largest Coefs: \n{}'.format(
+    feature_names_tfidf[sorted_coef_index_tfidf[:-11:-1]]))
 # Smallest Coefs:
 # ['worst' 'awful' 'waste' 'boring' 'worse' 'poor' 'terrible' 'horrible'
 #  'script' 'supposed']
-# Largest Coefs: 
+# Largest Coefs:
 # ['excellent' 'best' 'wonderful' 'perfect' 'love' 'amazing' 'favorite'
 #  'loved' 'today' 'enjoyed']
 
 
 model_tfidf_pred = model_tfidf.predict(vect_tfidf.transform(X_test))
-model_tfidf_pred = pd.Series(model_tfidf_pred, index = testData['id'], name = 'sentiment')
+model_tfidf_pred = pd.Series(
+    model_tfidf_pred, index=testData['id'], name='sentiment')
 model_tfidf_pred.to_csv('y_test_pred_tfidf_logreg.csv')
 
 
 #################################
 
-from sklearn.naive_bayes import MultinomialNB
 
-MNB_clf_tfidf = MultinomialNB(alpha = 0.1)
+MNB_clf_tfidf = MultinomialNB(alpha=0.1)
 MNB_clf_tfidf.fit(X_train_tfidf_vectorised, y_train)
 
 
-from sklearn.metrics import roc_auc_score
-print('AUC: ', roc_auc_score(y_valid, MNB_clf_tfidf.predict(X_valid_tfidf_vectorised)))
+print('AUC: ', roc_auc_score(
+    y_valid, MNB_clf_tfidf.predict(X_valid_tfidf_vectorised)))
 # AUC:  0.8828371290792637
 
 MNB_tfidf_pred = MNB_clf_tfidf.predict(vect_tfidf.transform(X_test))
-MNB_tfidf_pred = pd.Series(MNB_tfidf_pred, index = testData['id'], name = 'sentiment')
+MNB_tfidf_pred = pd.Series(
+    MNB_tfidf_pred, index=testData['id'], name='sentiment')
 MNB_tfidf_pred.to_csv('y_test_pred_tfidf_MNB.csv')
 
 #################################
 
-from xgboost import XGBClassifier
 
-XGBC_model_tfidf = XGBClassifier(eval_metric='auc', n_jobs = 6)
-XGBC_model_tfidf.fit(X_train_tfidf_vectorised, y_train, eval_set = [(X_train_tfidf_vectorised, y_train), (X_valid_tfidf_vectorised, y_valid)], early_stopping_rounds = 40)
+XGBC_model_tfidf = XGBClassifier(eval_metric='auc', n_jobs=6)
+XGBC_model_tfidf.fit(X_train_tfidf_vectorised, y_train, eval_set=[(
+    X_train_tfidf_vectorised, y_train), (X_valid_tfidf_vectorised, y_valid)], early_stopping_rounds=40)
 
-print('AUC: ', roc_auc_score(y_valid, XGBC_model_tfidf.predict(X_valid_tfidf_vectorised)))
+print('AUC: ', roc_auc_score(
+    y_valid, XGBC_model_tfidf.predict(X_valid_tfidf_vectorised)))
 # AUC:  0.8456653460731763
 
 XGBC_tfidf_pred = XGBC_model_tfidf.predict(vect_tfidf.transform(X_test))
-XGBC_tfidf_pred = pd.Series(XGBC_tfidf_pred, index = testData['id'], name = 'sentiment')
+XGBC_tfidf_pred = pd.Series(
+    XGBC_tfidf_pred, index=testData['id'], name='sentiment')
 XGBC_tfidf_pred.to_csv('y_test_pred_tfidf_XGBC.csv')
-
-
-
-
-
-
