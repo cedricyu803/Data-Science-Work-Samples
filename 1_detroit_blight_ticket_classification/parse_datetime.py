@@ -118,35 +118,38 @@ Refer to the pinned threads in Week 4's discussion forum when there is something
 """
 
 
-#%% Preamble
+# %% Preamble
 
-import pandas as pd
 # Make the output look better
+from datetime import datetime
+import os
+import seaborn as sns
+import re
+import matplotlib.pyplot as plt
+import numpy as np
+import pandas as pd
 pd.set_option('display.max_rows', 500)
 pd.set_option('display.max_columns', 500)
 # pd.set_option('display.width', 1000)
-pd.options.mode.chained_assignment = None  # default='warn' # ignores warning about dropping columns inplace
-import numpy as np
-import matplotlib.pyplot as plt
-import re
-import seaborn as sns
+# default='warn' # ignores warning about dropping columns inplace
+pd.options.mode.chained_assignment = None
 
-import os
 os.chdir(r'C:\Users\Cedric Yu\Desktop\Works\2_detroit_blight_ticket_classification')
 
 
 # !!!
-#%% load training and test set
+# %% load training and test set
 
 # parse datetime columns
-from datetime import datetime
-parser = lambda c: pd.to_datetime(c, format="%Y-%m-%d %H:%M:%S", errors='coerce')
+def parser(c): return pd.to_datetime(
+    c, format="%Y-%m-%d %H:%M:%S", errors='coerce')
 # coerce: invalid parsing will be set as NaT.
 
 
 # import original training dataset
 # train_cols = pd.read_csv(r'train.csv', nrows = 0).columns.tolist()
-train_df_all = pd.read_csv('train.csv', encoding = 'ISO-8859-1' , low_memory=False, parse_dates = [14,15], date_parser = parser)
+train_df_all = pd.read_csv('train.csv', encoding='ISO-8859-1',
+                           low_memory=False, parse_dates=[14, 15], date_parser=parser)
 train_df_all.reset_index(inplace=True)
 train_df_all.drop('index', inplace=True, axis=1)
 
@@ -154,34 +157,45 @@ train_df_all.drop('index', inplace=True, axis=1)
 train_df = train_df_all.copy()
 
 # pd.read_csv(r'test.csv', nrows = 0).columns.tolist()
-test_df_all = pd.read_csv('test.csv', encoding = 'ISO-8859-1',parse_dates = [14,15], date_parser = parser)
+test_df_all = pd.read_csv(
+    'test.csv', encoding='ISO-8859-1', parse_dates=[14, 15], date_parser=parser)
 test_df = test_df_all.copy()
 
 
-#%% datetime features
+# %% datetime features
 
 
 def get_year(row):
     return row.year
 
+
 def get_month(row):
     return row.month
+
 
 def get_weekday(row):
     return row.weekday()
 
+
 def get_day(row):
     return row.day
+
 
 def get_hour(row):
     return row.hour
 
+
 # !!!
-train_df['ticket_issued_date_year'] = train_df['ticket_issued_date'].apply(get_year)
-train_df['ticket_issued_date_month'] = train_df['ticket_issued_date'].apply(get_month)
-train_df['ticket_issued_date_weekday'] = train_df['ticket_issued_date'].apply(get_weekday)
-train_df['ticket_issued_date_day'] = train_df['ticket_issued_date'].apply(get_day)
-train_df['ticket_issued_date_hour'] = train_df['ticket_issued_date'].apply(get_hour)
+train_df['ticket_issued_date_year'] = train_df['ticket_issued_date'].apply(
+    get_year)
+train_df['ticket_issued_date_month'] = train_df['ticket_issued_date'].apply(
+    get_month)
+train_df['ticket_issued_date_weekday'] = train_df['ticket_issued_date'].apply(
+    get_weekday)
+train_df['ticket_issued_date_day'] = train_df['ticket_issued_date'].apply(
+    get_day)
+train_df['ticket_issued_date_hour'] = train_df['ticket_issued_date'].apply(
+    get_hour)
 
 train_df['hearing_date_year'] = train_df['hearing_date'].apply(get_year)
 train_df['hearing_date_month'] = train_df['hearing_date'].apply(get_month)
@@ -190,25 +204,16 @@ train_df['hearing_date_day'] = train_df['hearing_date'].apply(get_day)
 train_df['hearing_date_hour'] = train_df['hearing_date'].apply(get_hour)
 
 
-
-train_df['ticket_issued_date_year'] = train_df['ticket_issued_date'].apply(get_year)
-train_df['ticket_issued_date_month'] = train_df['ticket_issued_date'].apply(get_month)
-train_df['ticket_issued_date_weekday'] = train_df['ticket_issued_date'].apply(get_weekday)
-train_df['ticket_issued_date_day'] = train_df['ticket_issued_date'].apply(get_day)
-train_df['ticket_issued_date_hour'] = train_df['ticket_issued_date'].apply(get_hour)
-
-train_df['hearing_date_year'] = train_df['hearing_date'].apply(get_year)
-train_df['hearing_date_month'] = train_df['hearing_date'].apply(get_month)
-train_df['hearing_date_weekday'] = train_df['hearing_date'].apply(get_weekday)
-train_df['hearing_date_day'] = train_df['hearing_date'].apply(get_day)
-train_df['hearing_date_hour'] = train_df['hearing_date'].apply(get_hour)
-
-
-train_df['ticket_issued_date_year'] = train_df['ticket_issued_date'].apply(get_year)
-train_df['ticket_issued_date_month'] = train_df['ticket_issued_date'].apply(get_month)
-train_df['ticket_issued_date_weekday'] = train_df['ticket_issued_date'].apply(get_weekday)
-train_df['ticket_issued_date_day'] = train_df['ticket_issued_date'].apply(get_day)
-train_df['ticket_issued_date_hour'] = train_df['ticket_issued_date'].apply(get_hour)
+train_df['ticket_issued_date_year'] = train_df['ticket_issued_date'].apply(
+    get_year)
+train_df['ticket_issued_date_month'] = train_df['ticket_issued_date'].apply(
+    get_month)
+train_df['ticket_issued_date_weekday'] = train_df['ticket_issued_date'].apply(
+    get_weekday)
+train_df['ticket_issued_date_day'] = train_df['ticket_issued_date'].apply(
+    get_day)
+train_df['ticket_issued_date_hour'] = train_df['ticket_issued_date'].apply(
+    get_hour)
 
 train_df['hearing_date_year'] = train_df['hearing_date'].apply(get_year)
 train_df['hearing_date_month'] = train_df['hearing_date'].apply(get_month)
@@ -217,12 +222,34 @@ train_df['hearing_date_day'] = train_df['hearing_date'].apply(get_day)
 train_df['hearing_date_hour'] = train_df['hearing_date'].apply(get_hour)
 
 
+train_df['ticket_issued_date_year'] = train_df['ticket_issued_date'].apply(
+    get_year)
+train_df['ticket_issued_date_month'] = train_df['ticket_issued_date'].apply(
+    get_month)
+train_df['ticket_issued_date_weekday'] = train_df['ticket_issued_date'].apply(
+    get_weekday)
+train_df['ticket_issued_date_day'] = train_df['ticket_issued_date'].apply(
+    get_day)
+train_df['ticket_issued_date_hour'] = train_df['ticket_issued_date'].apply(
+    get_hour)
 
-test_df['ticket_issued_date_year'] = test_df['ticket_issued_date'].apply(get_year)
-test_df['ticket_issued_date_month'] = test_df['ticket_issued_date'].apply(get_month)
-test_df['ticket_issued_date_weekday'] = test_df['ticket_issued_date'].apply(get_weekday)
-test_df['ticket_issued_date_day'] = test_df['ticket_issued_date'].apply(get_day)
-test_df['ticket_issued_date_hour'] = test_df['ticket_issued_date'].apply(get_hour)
+train_df['hearing_date_year'] = train_df['hearing_date'].apply(get_year)
+train_df['hearing_date_month'] = train_df['hearing_date'].apply(get_month)
+train_df['hearing_date_weekday'] = train_df['hearing_date'].apply(get_weekday)
+train_df['hearing_date_day'] = train_df['hearing_date'].apply(get_day)
+train_df['hearing_date_hour'] = train_df['hearing_date'].apply(get_hour)
+
+
+test_df['ticket_issued_date_year'] = test_df['ticket_issued_date'].apply(
+    get_year)
+test_df['ticket_issued_date_month'] = test_df['ticket_issued_date'].apply(
+    get_month)
+test_df['ticket_issued_date_weekday'] = test_df['ticket_issued_date'].apply(
+    get_weekday)
+test_df['ticket_issued_date_day'] = test_df['ticket_issued_date'].apply(
+    get_day)
+test_df['ticket_issued_date_hour'] = test_df['ticket_issued_date'].apply(
+    get_hour)
 
 test_df['hearing_date_year'] = test_df['hearing_date'].apply(get_year)
 test_df['hearing_date_month'] = test_df['hearing_date'].apply(get_month)
@@ -231,19 +258,10 @@ test_df['hearing_date_day'] = test_df['hearing_date'].apply(get_day)
 test_df['hearing_date_hour'] = test_df['hearing_date'].apply(get_hour)
 
 
-#%% drop original datetime columns and save
+# %% drop original datetime columns and save
 
-train_df = train_df.drop(['ticket_issued_date', 'hearing_date'], axis = 1)
+train_df = train_df.drop(['ticket_issued_date', 'hearing_date'], axis=1)
 train_df.to_csv('engineered_datasets/train_df_datetime.csv')
 
-test_df = test_df.drop(['ticket_issued_date', 'hearing_date'], axis = 1)
+test_df = test_df.drop(['ticket_issued_date', 'hearing_date'], axis=1)
 test_df.to_csv('engineered_datasets/test_df_datetime.csv')
-
-
-
-
-
-
-
-
-

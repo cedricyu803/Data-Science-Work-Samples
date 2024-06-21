@@ -1,3 +1,5 @@
+Last updated: December 2022
+
 # Data Science Work Samples
 This folder contains select works I have done in data science and machine learning. <br>
 From this collection I have omitted a lot of works on different other topics that I did following some Coursera courses. They include: machine translation and trigger-word detection with LSTM; object detection with YOLOv3 using transfer learning, image segmentation using U-Net, face recognition using the Siamese network, image classification using InceptionV3 with data augmentations, and then some.

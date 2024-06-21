@@ -11,7 +11,7 @@ Created on Sun Sep 12 11:00:00 2021
 
 # Your AUC of 0.774448781327 was awarded a value of 1.0 out of 1.0 total grades
 
-#%%
+# %%
 """
 This assignment is based on a data challenge from the Michigan Data Science Team (MDST).
 
@@ -115,8 +115,7 @@ Refer to the pinned threads in Week 4's discussion forum when there is something
 """
 
 
-
-#%% Workflow
+# %% Workflow
 
 """
 # load datetime-processed training dataset
@@ -140,76 +139,84 @@ Refer to the pinned threads in Week 4's discussion forum when there is something
 
 """
 
-#%% Preamble
+# %% Preamble
 
-import pandas as pd
 # Make the output look better
+import category_encoders as ce
+from sklearn.preprocessing import MinMaxScaler
+from sklearn.preprocessing import OneHotEncoder
+from sklearn.model_selection import train_test_split
+import os
+import gc
+import re
+import seaborn as sns
+import matplotlib.pyplot as plt
+import pandas as pd
+import numpy as np
 pd.set_option('display.max_rows', 500)
 pd.set_option('display.max_columns', 500)
 # pd.set_option('display.width', 1000)
 pd.options.mode.chained_assignment = None  # default='warn'
-import numpy as np
-import matplotlib.pyplot as plt
-import seaborn as sns
-import re
-import gc
 
-import os
 os.chdir(r'C:\Users\Cedric Yu\Desktop\Works\2_detroit_blight_ticket_classification')
 
 
-#%% load datetime-processed training set
+# %% load datetime-processed training set
 
 
 # get training set column names
-train_cols_new = pd.read_csv('engineered_datasets/train_df_datetime.csv', nrows=0).columns
+train_cols_new = pd.read_csv(
+    'engineered_datasets/train_df_datetime.csv', nrows=0).columns
 train_cols_new = train_cols_new.drop('Unnamed: 0').to_list()
 
 # import datetime-processed training dataset
-train_df_raw = pd.read_csv('engineered_datasets/train_df_datetime.csv', low_memory = True, usecols = train_cols_new, dtype = {'zip_code': str, 'non_us_str_code': str, 'grafitti_status': str, 'ticket_issued_date_month': int, 'ticket_issued_date_weekday': int, 'ticket_issued_date_day': int, 'ticket_issued_date_hour': int})
+train_df_raw = pd.read_csv('engineered_datasets/train_df_datetime.csv', low_memory=True, usecols=train_cols_new, dtype={
+                           'zip_code': str, 'non_us_str_code': str, 'grafitti_status': str, 'ticket_issued_date_month': int, 'ticket_issued_date_weekday': int, 'ticket_issued_date_day': int, 'ticket_issued_date_hour': int})
 
 
 train_df = train_df_raw.copy()
 
-#%% drop some columns and rows
+# %% drop some columns and rows
 
-train_df = train_df[~np.isnan(train_df['compliance'])] 
+train_df = train_df[~np.isnan(train_df['compliance'])]
 # drop instances with NaN compliance
 
 # drop columns that are only accessible when compliance is made
-train_df.drop(['payment_amount','payment_date','payment_status','balance_due','collection_status','compliance_detail'], inplace=True,axis=1)
+train_df.drop(['payment_amount', 'payment_date', 'payment_status', 'balance_due',
+              'collection_status', 'compliance_detail'], inplace=True, axis=1)
 
 train_df = train_df[train_df['ticket_issued_date_year'] > 2004]
 train_df['zip_code'] = train_df['zip_code'].fillna('nfd')
 
 train_df.reset_index(inplace=True)
-train_df.drop('index', inplace=True,axis=1)
+train_df.drop('index', inplace=True, axis=1)
 
-#%% drop columns
+# %% drop columns
 
-cols_to_drop1 = ['ticket_id', 'violation_zip_code', 'violation_description', 'admin_fee', 'state_fee', 'judgment_amount', 'inspector_name', 'violator_name', 'violation_street_number', 'violation_street_name', 'mailing_address_str_number', 'mailing_address_str_name', 'non_us_str_code', 'city', 'clean_up_cost', 'grafitti_status', 'ticket_issued_date_year', 'hearing_date_year']
+cols_to_drop1 = ['ticket_id', 'violation_zip_code', 'violation_description', 'admin_fee', 'state_fee', 'judgment_amount', 'inspector_name', 'violator_name', 'violation_street_number',
+                 'violation_street_name', 'mailing_address_str_number', 'mailing_address_str_name', 'non_us_str_code', 'city', 'clean_up_cost', 'grafitti_status', 'ticket_issued_date_year', 'hearing_date_year']
 
 
-train_df = train_df.drop(cols_to_drop1, axis = 1)
+train_df = train_df.drop(cols_to_drop1, axis=1)
 
-#%% 
+# %%
 
-X_train_valid = train_df.drop('compliance', axis = 1)
+X_train_valid = train_df.drop('compliance', axis=1)
 y_train_valid = train_df['compliance']
 
 # del train_df
 
-#%% train-validation split
+# %% train-validation split
 
-from sklearn.model_selection import train_test_split
 
-X_train, X_valid, y_train, y_valid = train_test_split(X_train_valid, y_train_valid, train_size = 0.8)
+X_train, X_valid, y_train, y_valid = train_test_split(
+    X_train_valid, y_train_valid, train_size=0.8)
 
 # del X_train_valid, y_train_valid
 
 gc.collect()
 
-#%% functions and column selections
+# %% functions and column selections
 
 
 """
@@ -217,31 +224,33 @@ gc.collect()
 # otherwise 'country' and 'zip_code' are set to 0, state set to 'not_in_US'
 """
 
-def country_zip_process(df) :
-    
-    US_states = ["AL", "AK", "AZ", "AR", "CA", "CO", "CT", "DC", "DE", "FL", "GA", 
-              "HI", "ID", "IL", "IN", "IA", "KS", "KY", "LA", "ME", "MD", 
-              "MA", "MI", "MN", "MS", "MO", "MT", "NE", "NV", "NH", "NJ", 
-              "NM", "NY", "NC", "ND", "OH", "OK", "OR", "PA", "RI", "SC", 
-              "SD", "TN", "TX", "UT", "VT", "VA", "WA", "WV", "WI", "WY"]
-    
-    def country_zip_func(row) : 
-        if row['state'] in US_states: 
+
+def country_zip_process(df):
+
+    US_states = ["AL", "AK", "AZ", "AR", "CA", "CO", "CT", "DC", "DE", "FL", "GA",
+                 "HI", "ID", "IL", "IN", "IA", "KS", "KY", "LA", "ME", "MD",
+                 "MA", "MI", "MN", "MS", "MO", "MT", "NE", "NV", "NH", "NJ",
+                 "NM", "NY", "NC", "ND", "OH", "OK", "OR", "PA", "RI", "SC",
+                 "SD", "TN", "TX", "UT", "VT", "VA", "WA", "WV", "WI", "WY"]
+
+    def country_zip_func(row):
+        if row['state'] in US_states:
             row['country'] = 1
-            if (len(re.findall("\d{5,5}",row['zip_code'])) > 0):
-                row['zip_code']=int(re.findall("\d{5,5}",row['zip_code'])[0])
+            if (len(re.findall("\d{5,5}", row['zip_code'])) > 0):
+                row['zip_code'] = int(re.findall(
+                    "\d{5,5}", row['zip_code'])[0])
             else:
                 row['zip_code'] = 0
-        else : 
+        else:
             row['country'] = 0
             row['state'] = 'not_in_US'
             row['zip_code'] = 0
         return row
-    
+
     # convert zip_code to str
     # df['zip_code'] = df['zip_code'].astype(str)
-    df1 = df.apply(country_zip_func, axis = 1)
-    
+    df1 = df.apply(country_zip_func, axis=1)
+
     return df1
 
 
@@ -254,65 +263,72 @@ hour_fill = 9
 
 """encoding """
 
-object_cols=['agency_name', 'disposition']
+object_cols = ['agency_name', 'disposition']
 
-freq_cols2 = ['violation_code', 'hearing_date_day', 'ticket_issued_date_weekday', 'hearing_date_weekday', 'hearing_date_hour', 'state']
+freq_cols2 = ['violation_code', 'hearing_date_day', 'ticket_issued_date_weekday',
+              'hearing_date_weekday', 'hearing_date_hour', 'state']
 
-target_mean_cols3 = ['ticket_issued_date_month', 'hearing_date_month', 'ticket_issued_date_day', 'ticket_issued_date_hour']
-
+target_mean_cols3 = ['ticket_issued_date_month', 'hearing_date_month',
+                     'ticket_issued_date_day', 'ticket_issued_date_hour']
 
 
 """One-hot """
-from sklearn.preprocessing import OneHotEncoder
-OH_encoder = OneHotEncoder(handle_unknown='ignore', sparse=False)# sparse=False # will return sparse matrix if set True else will return an array
+OH_encoder = OneHotEncoder(
+    handle_unknown='ignore', sparse=False)  # sparse=False # will return sparse matrix if set True else will return an array
 
 # OH_encoder.fit_transform dataframe
-def one_hot_fit_transform(df) : 
-    
+
+
+def one_hot_fit_transform(df):
+
     # transform df using one-hot encoding
     df_object = df[object_cols]
     OH_encoder.fit(df_object)
-    OH_cols = pd.DataFrame(OH_encoder.transform(df_object), columns = OH_encoder.get_feature_names(object_cols)) 
+    OH_cols = pd.DataFrame(OH_encoder.transform(
+        df_object), columns=OH_encoder.get_feature_names(object_cols))
     OH_cols.index = df.index
     num_X = df.drop(object_cols, axis=1)
     OH_X = pd.concat([num_X, OH_cols], axis=1)
-    
+
     return OH_X
 
 # OH_encoder.transform dataframe
-def one_hot_transform(df) : 
-    
+
+
+def one_hot_transform(df):
+
     # transform df using one-hot encoding
     df_object = df[object_cols]
-    OH_cols = pd.DataFrame(OH_encoder.transform(df_object), columns = OH_encoder.get_feature_names(object_cols)) 
+    OH_cols = pd.DataFrame(OH_encoder.transform(
+        df_object), columns=OH_encoder.get_feature_names(object_cols))
     OH_cols.index = df.index
     num_X = df.drop(object_cols, axis=1)
     OH_X = pd.concat([num_X, OH_cols], axis=1)
-    
+
     return OH_X
 
 
 """for frequency and mean encoding """
-import category_encoders as ce
 
 """scaler """
-from sklearn.preprocessing import MinMaxScaler
 scaler5 = MinMaxScaler()
 
 
-
-
-#%% pre-processing
+# %% pre-processing
 
 """training set """
 """# processing 'country', 'state' and 'zip_code' """
 X_train = country_zip_process(X_train)
 
 """# fillna in hearing datetime"""
-X_train['hearing_date_month'] = X_train['hearing_date_month'].fillna(month_fill).astype(int)
-X_train['hearing_date_weekday'] = X_train['hearing_date_weekday'].fillna(weekday_fill).astype(int)
-X_train['hearing_date_day'] = X_train['hearing_date_day'].fillna(day_fill).astype(int)
-X_train['hearing_date_hour'] = X_train['hearing_date_hour'].fillna(hour_fill).astype(int)
+X_train['hearing_date_month'] = X_train['hearing_date_month'].fillna(
+    month_fill).astype(int)
+X_train['hearing_date_weekday'] = X_train['hearing_date_weekday'].fillna(
+    weekday_fill).astype(int)
+X_train['hearing_date_day'] = X_train['hearing_date_day'].fillna(
+    day_fill).astype(int)
+X_train['hearing_date_hour'] = X_train['hearing_date_hour'].fillna(
+    hour_fill).astype(int)
 
 """# one-hot encoding"""
 X_train_encoded1 = one_hot_fit_transform(X_train)
@@ -323,26 +339,30 @@ X_train_encoded1[freq_cols2] = X_train_encoded1[freq_cols2].astype(object)
 freq_encoder2 = ce.count.CountEncoder()
 freq_encoder2.fit(X_train_encoded1[freq_cols2])
 
-X_train_encoded2 = pd.concat([X_train_encoded1, freq_encoder2.transform(X_train_encoded1[freq_cols2]).rename(columns = dict(zip(freq_cols2, [col + '_freq_encoded' for col in freq_cols2])))], axis = 1).drop(freq_cols2, axis = 1)
+X_train_encoded2 = pd.concat([X_train_encoded1, freq_encoder2.transform(X_train_encoded1[freq_cols2]).rename(
+    columns=dict(zip(freq_cols2, [col + '_freq_encoded' for col in freq_cols2])))], axis=1).drop(freq_cols2, axis=1)
 # downcast to int32 to save ram
-X_train_encoded2[[col + '_freq_encoded' for col in freq_cols2]] = X_train_encoded2[[col + '_freq_encoded' for col in freq_cols2]]
+X_train_encoded2[[col + '_freq_encoded' for col in freq_cols2]
+                 ] = X_train_encoded2[[col + '_freq_encoded' for col in freq_cols2]]
 
 """target encoding """
 # change data type to object before feeding it into the encoder
-X_train_encoded2[target_mean_cols3] = X_train_encoded2[target_mean_cols3].astype(object)
+X_train_encoded2[target_mean_cols3] = X_train_encoded2[target_mean_cols3].astype(
+    object)
 
 target_mean_encoder3 = ce.target_encoder.TargetEncoder()
 target_mean_encoder3.fit(X_train_encoded2[target_mean_cols3], y_train)
 
-X_train_encoded3 = pd.concat([X_train_encoded2, target_mean_encoder3.transform(X_train_encoded2[target_mean_cols3]).rename(columns = dict(zip(target_mean_cols3, [col + '_mean_encoded' for col in target_mean_cols3])))], axis = 1).drop(target_mean_cols3, axis = 1)
+X_train_encoded3 = pd.concat([X_train_encoded2, target_mean_encoder3.transform(X_train_encoded2[target_mean_cols3]).rename(
+    columns=dict(zip(target_mean_cols3, [col + '_mean_encoded' for col in target_mean_cols3])))], axis=1).drop(target_mean_cols3, axis=1)
 
 """# fillna resulting from encoding"""
 X_train_encoded3 = X_train_encoded3.fillna(X_train_encoded3.mean())
 
 """scaler """
 X_train_encoded4_scaled = scaler5.fit_transform(X_train_encoded3)
-X_train_encoded4_scaled = pd.DataFrame(X_train_encoded4_scaled, columns = X_train_encoded3.columns, index = X_train_encoded3.index)
-
+X_train_encoded4_scaled = pd.DataFrame(
+    X_train_encoded4_scaled, columns=X_train_encoded3.columns, index=X_train_encoded3.index)
 
 
 """validation set """
@@ -350,39 +370,50 @@ X_train_encoded4_scaled = pd.DataFrame(X_train_encoded4_scaled, columns = X_trai
 X_valid = country_zip_process(X_valid)
 
 
-X_valid['hearing_date_month'] = X_valid['hearing_date_month'].fillna(month_fill).astype(int)
-X_valid['hearing_date_weekday'] = X_valid['hearing_date_weekday'].fillna(weekday_fill).astype(int)
-X_valid['hearing_date_day'] = X_valid['hearing_date_day'].fillna(day_fill).astype(int)
-X_valid['hearing_date_hour'] = X_valid['hearing_date_hour'].fillna(hour_fill).astype(int)
+X_valid['hearing_date_month'] = X_valid['hearing_date_month'].fillna(
+    month_fill).astype(int)
+X_valid['hearing_date_weekday'] = X_valid['hearing_date_weekday'].fillna(
+    weekday_fill).astype(int)
+X_valid['hearing_date_day'] = X_valid['hearing_date_day'].fillna(
+    day_fill).astype(int)
+X_valid['hearing_date_hour'] = X_valid['hearing_date_hour'].fillna(
+    hour_fill).astype(int)
 
 
 X_valid_encoded1 = one_hot_transform(X_valid)
 
 
 X_valid_encoded1[freq_cols2] = X_valid_encoded1[freq_cols2].astype(object)
-X_valid_encoded2 = pd.concat([X_valid_encoded1, freq_encoder2.transform(X_valid_encoded1[freq_cols2]).rename(columns = dict(zip(freq_cols2, [col + '_freq_encoded' for col in freq_cols2])))], axis = 1).drop(freq_cols2, axis = 1)
-X_valid_encoded2[[col + '_freq_encoded' for col in freq_cols2]] = X_valid_encoded2[[col + '_freq_encoded' for col in freq_cols2]]
+X_valid_encoded2 = pd.concat([X_valid_encoded1, freq_encoder2.transform(X_valid_encoded1[freq_cols2]).rename(
+    columns=dict(zip(freq_cols2, [col + '_freq_encoded' for col in freq_cols2])))], axis=1).drop(freq_cols2, axis=1)
+X_valid_encoded2[[col + '_freq_encoded' for col in freq_cols2]
+                 ] = X_valid_encoded2[[col + '_freq_encoded' for col in freq_cols2]]
 
 
-X_valid_encoded2[target_mean_cols3] = X_valid_encoded2[target_mean_cols3].astype(object)
-X_valid_encoded3 = pd.concat([X_valid_encoded2, target_mean_encoder3.transform(X_valid_encoded2[target_mean_cols3]).rename(columns = dict(zip(target_mean_cols3, [col + '_mean_encoded' for col in target_mean_cols3])))], axis = 1).drop(target_mean_cols3, axis = 1)
+X_valid_encoded2[target_mean_cols3] = X_valid_encoded2[target_mean_cols3].astype(
+    object)
+X_valid_encoded3 = pd.concat([X_valid_encoded2, target_mean_encoder3.transform(X_valid_encoded2[target_mean_cols3]).rename(
+    columns=dict(zip(target_mean_cols3, [col + '_mean_encoded' for col in target_mean_cols3])))], axis=1).drop(target_mean_cols3, axis=1)
 
 
 X_valid_encoded3 = X_valid_encoded3.fillna(X_train_encoded3.mean())
 
 
 X_valid_encoded4_scaled = scaler5.transform(X_valid_encoded3)
-X_valid_encoded4_scaled = pd.DataFrame(X_valid_encoded4_scaled, columns = X_valid_encoded3.columns, index = X_valid_encoded3.index)
+X_valid_encoded4_scaled = pd.DataFrame(
+    X_valid_encoded4_scaled, columns=X_valid_encoded3.columns, index=X_valid_encoded3.index)
 
 
-#%% load datetime-processed test set
+# %% load datetime-processed test set
 
 
-test_cols_new = pd.read_csv('engineered_datasets/test_df_datetime.csv', nrows=0).columns
+test_cols_new = pd.read_csv(
+    'engineered_datasets/test_df_datetime.csv', nrows=0).columns
 test_cols_new = test_cols_new.drop('Unnamed: 0').to_list()
 
 # import datetime-processed training dataset
-test_df_raw = pd.read_csv('engineered_datasets/test_df_datetime.csv', low_memory = True, usecols = test_cols_new, dtype = {'zip_code': str, 'non_us_str_code': str, 'grafitti_status': str, 'ticket_issued_date_month': int, 'ticket_issued_date_weekday': int, 'ticket_issued_date_day': int, 'ticket_issued_date_hour': int})
+test_df_raw = pd.read_csv('engineered_datasets/test_df_datetime.csv', low_memory=True, usecols=test_cols_new, dtype={
+                          'zip_code': str, 'non_us_str_code': str, 'grafitti_status': str, 'ticket_issued_date_month': int, 'ticket_issued_date_weekday': int, 'ticket_issued_date_day': int, 'ticket_issued_date_hour': int})
 
 test_id = test_df_raw['ticket_id'].copy()
 X_test = test_df_raw.copy()
@@ -391,34 +422,43 @@ X_test = test_df_raw.copy()
 """test set """
 # replace the part for validation set by test set
 
-X_test = X_test.drop(cols_to_drop1, axis = 1)
+X_test = X_test.drop(cols_to_drop1, axis=1)
 
 X_test = country_zip_process(X_test)
 
 
-X_test['hearing_date_month'] = X_test['hearing_date_month'].fillna(month_fill).astype(int)
-X_test['hearing_date_weekday'] = X_test['hearing_date_weekday'].fillna(weekday_fill).astype(int)
-X_test['hearing_date_day'] = X_test['hearing_date_day'].fillna(day_fill).astype(int)
-X_test['hearing_date_hour'] = X_test['hearing_date_hour'].fillna(hour_fill).astype(int)
+X_test['hearing_date_month'] = X_test['hearing_date_month'].fillna(
+    month_fill).astype(int)
+X_test['hearing_date_weekday'] = X_test['hearing_date_weekday'].fillna(
+    weekday_fill).astype(int)
+X_test['hearing_date_day'] = X_test['hearing_date_day'].fillna(
+    day_fill).astype(int)
+X_test['hearing_date_hour'] = X_test['hearing_date_hour'].fillna(
+    hour_fill).astype(int)
 
 
 X_test_encoded1 = one_hot_transform(X_test)
 
 
 X_test_encoded1[freq_cols2] = X_test_encoded1[freq_cols2].astype(object)
-X_test_encoded2 = pd.concat([X_test_encoded1, freq_encoder2.transform(X_test_encoded1[freq_cols2]).rename(columns = dict(zip(freq_cols2, [col + '_freq_encoded' for col in freq_cols2])))], axis = 1).drop(freq_cols2, axis = 1)
-X_test_encoded2[[col + '_freq_encoded' for col in freq_cols2]] = X_test_encoded2[[col + '_freq_encoded' for col in freq_cols2]]
+X_test_encoded2 = pd.concat([X_test_encoded1, freq_encoder2.transform(X_test_encoded1[freq_cols2]).rename(
+    columns=dict(zip(freq_cols2, [col + '_freq_encoded' for col in freq_cols2])))], axis=1).drop(freq_cols2, axis=1)
+X_test_encoded2[[col + '_freq_encoded' for col in freq_cols2]
+                ] = X_test_encoded2[[col + '_freq_encoded' for col in freq_cols2]]
 
 
-X_test_encoded2[target_mean_cols3] = X_test_encoded2[target_mean_cols3].astype(object)
-X_test_encoded3 = pd.concat([X_test_encoded2, target_mean_encoder3.transform(X_test_encoded2[target_mean_cols3]).rename(columns = dict(zip(target_mean_cols3, [col + '_mean_encoded' for col in target_mean_cols3])))], axis = 1).drop(target_mean_cols3, axis = 1)
+X_test_encoded2[target_mean_cols3] = X_test_encoded2[target_mean_cols3].astype(
+    object)
+X_test_encoded3 = pd.concat([X_test_encoded2, target_mean_encoder3.transform(X_test_encoded2[target_mean_cols3]).rename(
+    columns=dict(zip(target_mean_cols3, [col + '_mean_encoded' for col in target_mean_cols3])))], axis=1).drop(target_mean_cols3, axis=1)
 
 
 X_test_encoded3 = X_test_encoded3.fillna(X_train_encoded3.mean())
 
 
 X_test_encoded4_scaled = scaler5.transform(X_test_encoded3)
-X_test_encoded4_scaled = pd.DataFrame(X_test_encoded4_scaled, columns = X_test_encoded3.columns, index = X_test_encoded3.index)
+X_test_encoded4_scaled = pd.DataFrame(
+    X_test_encoded4_scaled, columns=X_test_encoded3.columns, index=X_test_encoded3.index)
 
 
 # cor = pd.concat([X_train_encoded3, y_train], axis = 1).corr()
@@ -435,15 +475,15 @@ X_test_encoded4_scaled = pd.DataFrame(X_test_encoded4_scaled, columns = X_test_e
 # del X_train_encoded3, X_train_encoded2, X_train_encoded1, X_train
 # del X_valid_encoded3, X_valid_encoded2, X_valid_encoded1, X_valid
 
-#%% save pre-processed datasets
+# %% save pre-processed datasets
 
 X_train_encoded3.to_csv('engineered_datasets/X_train_encoded3.csv')
 X_valid_encoded3.to_csv('engineered_datasets/X_valid_encoded3.csv')
-X_train_encoded4_scaled.to_csv('engineered_datasets/X_train_encoded4_scaled.csv')
-X_valid_encoded4_scaled.to_csv('engineered_datasets/X_valid_encoded4_scaled.csv')
+X_train_encoded4_scaled.to_csv(
+    'engineered_datasets/X_train_encoded4_scaled.csv')
+X_valid_encoded4_scaled.to_csv(
+    'engineered_datasets/X_valid_encoded4_scaled.csv')
 y_train.to_csv('engineered_datasets/y_train.csv')
 y_valid.to_csv('engineered_datasets/y_valid.csv')
 
 X_test_encoded4_scaled.to_csv('engineered_datasets/X_test_encoded4_scaled.csv')
-
-

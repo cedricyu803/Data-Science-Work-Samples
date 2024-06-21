@@ -57,7 +57,7 @@ Columns
 
 """
 
-#%% This file
+# %% This file
 
 """
 First trial: without using embedding vectors
@@ -65,7 +65,7 @@ uses CountVectorizer and TfidfVectorizer from nltk, combined with other engineer
 
 """
 
-#%% Workflow
+# %% Workflow
 
 """
 # load pre-processed text and engineered features
@@ -77,38 +77,54 @@ uses CountVectorizer and TfidfVectorizer from nltk, combined with other engineer
 """
 
 
-#%% Preamble
+# %% Preamble
 
-import pandas as pd
 # Make the output look better
+from sklearn.metrics import roc_auc_score
+from sklearn.feature_extraction.text import TfidfVectorizer
+from xgboost import XGBClassifier
+from sklearn.ensemble import RandomForestClassifier
+from sklearn.naive_bayes import MultinomialNB
+from sklearn.metrics import f1_score
+from sklearn.linear_model import LogisticRegression
+from sklearn.preprocessing import MinMaxScaler
+from sklearn.feature_extraction.text import CountVectorizer
+import os
+import seaborn as sns
+import matplotlib.pyplot as plt
+import numpy as np
+import pandas as pd
 pd.set_option('display.max_rows', 500)
 pd.set_option('display.max_columns', 500)
 # pd.set_option('display.width', 1000)
 pd.set_option('display.max_colwidth', None)
-pd.options.mode.chained_assignment = None  # default='warn' # ignores warning about dropping columns inplace
-import numpy as np
-import matplotlib.pyplot as plt
+# default='warn' # ignores warning about dropping columns inplace
+pd.options.mode.chained_assignment = None
 # import re
-import seaborn as sns
 
-import os
 os.chdir(r'C:\Users\Cedric Yu\Desktop\Works\9_nlp_disaster_tweets')
 
-#%% load engineered datasets
+# %% load engineered datasets
 
-X_test = pd.read_csv ("test.csv", header = [0])
+X_test = pd.read_csv("test.csv", header=[0])
 
-X_train_text_preprocessed = np.load('engineered_datasets/X_train_text_preprocessed.npy', allow_pickle=True).squeeze().tolist()
-X_valid_text_preprocessed = np.load('engineered_datasets/X_valid_text_preprocessed.npy', allow_pickle=True).squeeze().tolist()
-X_test_text_preprocessed = np.load('engineered_datasets/X_test_text_preprocessed.npy', allow_pickle=True).squeeze().tolist()
+X_train_text_preprocessed = np.load(
+    'engineered_datasets/X_train_text_preprocessed.npy', allow_pickle=True).squeeze().tolist()
+X_valid_text_preprocessed = np.load(
+    'engineered_datasets/X_valid_text_preprocessed.npy', allow_pickle=True).squeeze().tolist()
+X_test_text_preprocessed = np.load(
+    'engineered_datasets/X_test_text_preprocessed.npy', allow_pickle=True).squeeze().tolist()
 
 # X_train_hashmention = np.load('engineered_datasets/X_train_hashmention.npy', allow_pickle=True).squeeze().tolist()
 # X_valid_hashmention = np.load('engineered_datasets/X_valid_hashmention.npy', allow_pickle=True).squeeze().tolist()
 # X_test_hashmention = np.load('engineered_datasets/X_test_hashmention.npy', allow_pickle=True).squeeze().tolist()
 
-X_train_no_text_encoded2 = np.load('engineered_datasets/X_train_no_text_encoded2.npy', allow_pickle=True)
-X_valid_no_text_encoded2 = np.load('engineered_datasets/X_valid_no_text_encoded2.npy', allow_pickle=True)
-X_test_no_text_encoded2 = np.load('engineered_datasets/X_test_no_text_encoded2.npy', allow_pickle=True)
+X_train_no_text_encoded2 = np.load(
+    'engineered_datasets/X_train_no_text_encoded2.npy', allow_pickle=True)
+X_valid_no_text_encoded2 = np.load(
+    'engineered_datasets/X_valid_no_text_encoded2.npy', allow_pickle=True)
+X_test_no_text_encoded2 = np.load(
+    'engineered_datasets/X_test_no_text_encoded2.npy', allow_pickle=True)
 
 y_train = np.load('engineered_datasets/y_train.npy')
 y_valid = np.load('engineered_datasets/y_valid.npy')
@@ -118,13 +134,10 @@ y_valid = np.load('engineered_datasets/y_valid.npy')
 # X_train_added = hstack([X_train, csr_matrix(cols_to_add9)], 'csr')
 
 
-#%% CountVectorizer with baseline models
+# %% CountVectorizer with baseline models
 
 
 """fit CountVectorizer and transform"""
-
-
-from sklearn.feature_extraction.text import CountVectorizer
 
 
 """# grid search for CountVectorizer hyperparameters"""
@@ -141,31 +154,33 @@ from sklearn.feature_extraction.text import CountVectorizer
 #         # vect_count.get_feature_names()[::2000]
 #         X_train_text_countvec0 = vect_count0.transform(X_train_text_preprocessed).toarray()
 #         X_valid_text_countvec0 = vect_count0.transform(X_valid_text_preprocessed).toarray()
-        
+
 #         X_train_count_added0 = np.hstack([X_train_text_countvec0, X_train_no_text_encoded2])
 #         X_valid_count_added0 = np.hstack([X_valid_text_countvec0, X_valid_no_text_encoded2])
-        
+
 #         scaler_count0 = MinMaxScaler()
 
 #         scaler_count0.fit(X_train_count_added0)
-        
+
 #         X_train_count_added_scaled0 = scaler_count0.transform(X_train_count_added0)
 #         X_valid_count_added_scaled0 = scaler_count0.transform(X_valid_count_added0)
-        
+
 #         # logistic regression
 #         model_count0 = LogisticRegression()
 #         model_count0.fit(X_train_count_added_scaled0, y_train)
-        
+
 #         # Predict the transformed test documents
 #         predictions_count0 = model_count0.predict(X_valid_count_added_scaled0)
 #         F1_count.append((min_df, max_df, f1_score(y_valid, predictions_count0)))
 
 
+vect_count = CountVectorizer(min_df=3, max_df=0.3, stop_words='english', ngram_range=(
+    1, 3)).fit(X_train_text_preprocessed)
 
-vect_count = CountVectorizer(min_df=3, max_df=0.3, stop_words='english', ngram_range = (1,3)).fit(X_train_text_preprocessed)
-
-X_train_text_countvec = vect_count.transform(X_train_text_preprocessed).toarray()
-X_valid_text_countvec = vect_count.transform(X_valid_text_preprocessed).toarray()
+X_train_text_countvec = vect_count.transform(
+    X_train_text_preprocessed).toarray()
+X_valid_text_countvec = vect_count.transform(
+    X_valid_text_preprocessed).toarray()
 X_test_text_countvec = vect_count.transform(X_test_text_preprocessed).toarray()
 
 
@@ -174,19 +189,21 @@ print(vect_count.get_feature_names()[::1000])
 len(vect_count.get_feature_names())
 # 8390
 
-inv_vocab = {vect_count.vocabulary_[word]: word for word in vect_count.get_feature_names()}
+inv_vocab = {vect_count.vocabulary_[
+    word]: word for word in vect_count.get_feature_names()}
 
 
 """combine with other features"""
 
-X_train_count_added = np.hstack([X_train_text_countvec, X_train_no_text_encoded2])
-X_valid_count_added = np.hstack([X_valid_text_countvec, X_valid_no_text_encoded2])
+X_train_count_added = np.hstack(
+    [X_train_text_countvec, X_train_no_text_encoded2])
+X_valid_count_added = np.hstack(
+    [X_valid_text_countvec, X_valid_no_text_encoded2])
 X_test_count_added = np.hstack([X_test_text_countvec, X_test_no_text_encoded2])
 
 
 """scaler """
 
-from sklearn.preprocessing import MinMaxScaler
 scaler_count = MinMaxScaler()
 
 scaler_count.fit(X_train_count_added)
@@ -202,16 +219,14 @@ X_test_count_added_scaled = scaler_count.transform(X_test_count_added)
 
 # logistic regression
 
-from sklearn.linear_model import LogisticRegression
 
-model_count = LogisticRegression(max_iter = 10000)
+model_count = LogisticRegression(max_iter=10000)
 model_count.fit(X_train_count_added_scaled, y_train)
 
 # Predict the transformed test documents
 predictions_count = model_count.predict(X_valid_count_added_scaled)
 
 # !!!
-from sklearn.metrics import f1_score
 print('F1 score: ', f1_score(y_valid, predictions_count))
 # F1 score:  0.7564422277639236
 
@@ -221,62 +236,67 @@ feature_names_count = np.array(vect_count.get_feature_names())
 sorted_coef_index_count = model_count.coef_[0][:8390].argsort()
 
 # Find the 10 smallest and 10 largest coefficients
-# The 10 largest coefficients are being indexed using [:-11:-1] 
+# The 10 largest coefficients are being indexed using [:-11:-1]
 # so the list returned is in order of largest to smallest
-print('Smallest Coefs:\n{}'.format(feature_names_count[sorted_coef_index_count[:10]]))
-print('Largest Coefs: \n{}'.format(feature_names_count[sorted_coef_index_count[:-11:-1]]))
+print('Smallest Coefs:\n{}'.format(
+    feature_names_count[sorted_coef_index_count[:10]]))
+print('Largest Coefs: \n{}'.format(
+    feature_names_count[sorted_coef_index_count[:-11:-1]]))
 # Smallest Coefs:
 # ['mode' 'best' 'buy' 'special' 'super' 'august number punc' 'cake'
 #  'user punc' 'entertainment' 'longer']
-# Largest Coefs: 
+# Largest Coefs:
 # ['hiroshima' 'california' 'storm' 'crash' 'plane' 'war' 'riots' 'train'
 #  'fires' 'tornado']
 
 model_count_pred = model_count.predict(X_test_count_added_scaled)
-model_count_pred = pd.Series(model_count_pred, index = X_test['id'], name = 'target')
+model_count_pred = pd.Series(
+    model_count_pred, index=X_test['id'], name='target')
 model_count_pred.to_csv('y_test_pred_count_logreg.csv')
 # 0.79190
 
 #################################
 
-from sklearn.naive_bayes import MultinomialNB
 
-MNB_clf_count = MultinomialNB(alpha = 0.1)
+MNB_clf_count = MultinomialNB(alpha=0.1)
 MNB_clf_count.fit(X_train_count_added_scaled, y_train)
 
 # !!!
-print('F1 score: ', f1_score(y_valid, MNB_clf_count.predict(X_valid_count_added_scaled)))
+print('F1 score: ', f1_score(
+    y_valid, MNB_clf_count.predict(X_valid_count_added_scaled)))
 # F1 score:  0.711590296495957
 
 
 #################################
 
-from sklearn.ensemble import RandomForestClassifier
 # !!!
-RFC_model_count = RandomForestClassifier(n_jobs = 6)
+RFC_model_count = RandomForestClassifier(n_jobs=6)
 RFC_model_count.fit(X_train_count_added_scaled, y_train)
-print('F1 score: ', f1_score(y_valid, RFC_model_count.predict(X_valid_count_added_scaled)))
+print('F1 score: ', f1_score(
+    y_valid, RFC_model_count.predict(X_valid_count_added_scaled)))
 # F1 score:  0.7205750224618149
 
 
 #################################
 
-from xgboost import XGBClassifier
 
-XGBC_model_count = XGBClassifier(eval_metric='auc', n_jobs = 6)
-XGBC_model_count.fit(X_train_count_added_scaled, y_train, eval_set = [(X_train_count_added_scaled, y_train), (X_valid_count_added_scaled, y_valid)], early_stopping_rounds = 40)
+XGBC_model_count = XGBClassifier(eval_metric='auc', n_jobs=6)
+XGBC_model_count.fit(X_train_count_added_scaled, y_train, eval_set=[(
+    X_train_count_added_scaled, y_train), (X_valid_count_added_scaled, y_valid)], early_stopping_rounds=40)
 # [99]	validation_0-auc:0.94412	validation_1-auc:0.84282
 # !!!
-print('F1 score: ', f1_score(y_valid, XGBC_model_count.predict(X_valid_count_added_scaled)))
+print('F1 score: ', f1_score(
+    y_valid, XGBC_model_count.predict(X_valid_count_added_scaled)))
 # F1 score:  0.7297071129707113
 
 index0 = [word for word in list(inv_vocab.values())] + ['char_count', 'punc_ratio', 'cap_ratio',
-                'sentence_count_freq_encoded', 'stopword_num_freq_encoded',
-                'hashtag_num_freq_encoded', 'at_num_freq_encoded',
-                'url_num_freq_encoded', 'country_mention_num_freq_encoded',
-                'token_count_freq_encoded', 'keyword_mean_encoded']
+                                                        'sentence_count_freq_encoded', 'stopword_num_freq_encoded',
+                                                        'hashtag_num_freq_encoded', 'at_num_freq_encoded',
+                                                        'url_num_freq_encoded', 'country_mention_num_freq_encoded',
+                                                        'token_count_freq_encoded', 'keyword_mean_encoded']
 
-XGBR_feature_importances_count = pd.Series(XGBC_model_count.feature_importances_, index = index0).sort_values(ascending = False)
+XGBR_feature_importances_count = pd.Series(
+    XGBC_model_count.feature_importances_, index=index0).sort_values(ascending=False)
 
 # keyword_mean_encoded                0.038112
 # country_mention_num_freq_encoded    0.016730
@@ -311,25 +331,23 @@ XGBR_feature_importances_count = pd.Series(XGBC_model_count.feature_importances_
 # dtype: float32
 
 
-
-
 # XGBC_model_count_pred = XGBC_model_count.predict(vect_count.transform(X_test))
 # XGBC_model_count_pred = pd.Series(XGBC_model_count_pred, index = testData['id'], name = 'sentiment')
 # XGBC_model_count_pred.to_csv('y_test_pred_count_XGBC.csv')
 
 
-
-
-#%% TfidfVectorizer with baseline models
+# %% TfidfVectorizer with baseline models
 
 """ fit TfidfVectorizer and transform"""
 
-from sklearn.feature_extraction.text import TfidfVectorizer
 
-vect_tfidf = TfidfVectorizer(min_df=3, max_df=0.3, stop_words='english', ngram_range = (1,3)).fit(X_train_text_preprocessed)
+vect_tfidf = TfidfVectorizer(min_df=3, max_df=0.3, stop_words='english', ngram_range=(
+    1, 3)).fit(X_train_text_preprocessed)
 
-X_train_text_tfidfvec = vect_tfidf.transform(X_train_text_preprocessed).toarray()
-X_valid_text_tfidfvec = vect_tfidf.transform(X_valid_text_preprocessed).toarray()
+X_train_text_tfidfvec = vect_tfidf.transform(
+    X_train_text_preprocessed).toarray()
+X_valid_text_tfidfvec = vect_tfidf.transform(
+    X_valid_text_preprocessed).toarray()
 X_test_text_tfidfvec = vect_tfidf.transform(X_test_text_preprocessed).toarray()
 
 
@@ -341,14 +359,15 @@ len(vect_tfidf.get_feature_names())
 
 """combine with other features"""
 
-X_train_tfidf_added = np.hstack([X_train_text_tfidfvec, X_train_no_text_encoded2])
-X_valid_tfidf_added = np.hstack([X_valid_text_tfidfvec, X_valid_no_text_encoded2])
+X_train_tfidf_added = np.hstack(
+    [X_train_text_tfidfvec, X_train_no_text_encoded2])
+X_valid_tfidf_added = np.hstack(
+    [X_valid_text_tfidfvec, X_valid_no_text_encoded2])
 X_test_tfidf_added = np.hstack([X_test_text_tfidfvec, X_test_no_text_encoded2])
 
 
 """scaler """
 
-from sklearn.preprocessing import MinMaxScaler
 scaler_tfidf = MinMaxScaler()
 
 scaler_tfidf.fit(X_train_tfidf_added)
@@ -364,16 +383,14 @@ X_test_tfidf_added_scaled = scaler_tfidf.transform(X_test_tfidf_added)
 
 # logistic regression
 
-from sklearn.linear_model import LogisticRegression
 
-model_tfidf = LogisticRegression(max_iter = 10000)
+model_tfidf = LogisticRegression(max_iter=10000)
 model_tfidf.fit(X_train_tfidf_added_scaled, y_train)
 
 # Predict the transformed test documents
 predictions_tfidf = model_tfidf.predict(X_valid_tfidf_added_scaled)
 
 # !!!
-from sklearn.metrics import f1_score
 print('F1 score: ', f1_score(y_valid, predictions_tfidf))
 # F1 score:  0.7495854063018241
 
@@ -383,66 +400,70 @@ feature_names_tfidf = np.array(vect_tfidf.get_feature_names())
 sorted_coef_index_tfidf = model_tfidf.coef_[0][:8390].argsort()
 
 # Find the 10 smallest and 10 largest coefficients
-# The 10 largest coefficients are being indexed using [:-11:-1] 
+# The 10 largest coefficients are being indexed using [:-11:-1]
 # so the list returned is in order of largest to smallest
-print('Smallest Coefs:\n{}'.format(feature_names_tfidf[sorted_coef_index_tfidf[:10]]))
-print('Largest Coefs: \n{}'.format(feature_names_tfidf[sorted_coef_index_tfidf[:-11:-1]]))
+print('Smallest Coefs:\n{}'.format(
+    feature_names_tfidf[sorted_coef_index_tfidf[:10]]))
+print('Largest Coefs: \n{}'.format(
+    feature_names_tfidf[sorted_coef_index_tfidf[:-11:-1]]))
 # Smallest Coefs:
 # ['best' 'special' 'mode' 'good' 'super' 'august number punc' 'new'
 #  'better' 'user punc' 'united']
-# Largest Coefs: 
+# Largest Coefs:
 # ['hiroshima' 'california' 'crash' 'report' 'storm' 'train' 'war' 'riots'
- # 'cos' 'plane']
- 
+# 'cos' 'plane']
+
 model_tfidf_pred = model_tfidf.predict(X_test_count_added_scaled)
-model_tfidf_pred = pd.Series(model_tfidf_pred, index = X_test['id'], name = 'target')
+model_tfidf_pred = pd.Series(
+    model_tfidf_pred, index=X_test['id'], name='target')
 model_tfidf_pred.to_csv('y_test_pred_tfidf_logreg.csv')
 
 #################################
 
-from sklearn.naive_bayes import MultinomialNB
 
-MNB_clf_tfidf = MultinomialNB(alpha = 0.1)
+MNB_clf_tfidf = MultinomialNB(alpha=0.1)
 MNB_clf_tfidf.fit(X_train_tfidf_added_scaled, y_train)
 
 # !!!
-print('F1 score: ', f1_score(y_valid, MNB_clf_tfidf.predict(X_valid_tfidf_added_scaled)))
+print('F1 score: ', f1_score(
+    y_valid, MNB_clf_tfidf.predict(X_valid_tfidf_added_scaled)))
 # F1 score:  0.7118942731277533
 
 
 #################################
 
-from sklearn.ensemble import RandomForestClassifier
 # !!!
-RFC_model_tfidf = RandomForestClassifier(n_jobs = 6)
+RFC_model_tfidf = RandomForestClassifier(n_jobs=6)
 RFC_model_tfidf.fit(X_train_tfidf_added_scaled, y_train)
-print('F1 score: ', f1_score(y_valid, RFC_model_tfidf.predict(X_valid_tfidf_added_scaled)))
+print('F1 score: ', f1_score(
+    y_valid, RFC_model_tfidf.predict(X_valid_tfidf_added_scaled)))
 # F1 score:  0.7235188509874326
 
 
 #################################
 
-from xgboost import XGBClassifier
 
-XGBC_model_tfidf = XGBClassifier(eval_metric='auc', n_jobs = 6)
-XGBC_model_tfidf.fit(X_train_tfidf_added_scaled, y_train, eval_set = [(X_train_tfidf_added_scaled, y_train), (X_valid_tfidf_added_scaled, y_valid)], early_stopping_rounds = 40)
+XGBC_model_tfidf = XGBClassifier(eval_metric='auc', n_jobs=6)
+XGBC_model_tfidf.fit(X_train_tfidf_added_scaled, y_train, eval_set=[(
+    X_train_tfidf_added_scaled, y_train), (X_valid_tfidf_added_scaled, y_valid)], early_stopping_rounds=40)
 # [99]	validation_0-auc:0.94412	validation_1-auc:0.84282
 # !!!
-print('F1 score: ', f1_score(y_valid, XGBC_model_tfidf.predict(X_valid_tfidf_added_scaled)))
+print('F1 score: ', f1_score(
+    y_valid, XGBC_model_tfidf.predict(X_valid_tfidf_added_scaled)))
 # F1 score:  0.7483108108108107
-from sklearn.metrics import roc_auc_score
-print('AUC: ', roc_auc_score(y_valid, XGBC_model_tfidf.predict(X_valid_tfidf_added_scaled)))
+print('AUC: ', roc_auc_score(
+    y_valid, XGBC_model_tfidf.predict(X_valid_tfidf_added_scaled)))
 # AUC:  0.7890329599455688
 
 
-
 index0 = [word for word in list(inv_vocab.values())] + ['char_count', 'punc_ratio', 'cap_ratio',
-                'sentence_count_freq_encoded', 'stopword_num_freq_encoded',
-                'hashtag_num_freq_encoded', 'at_num_freq_encoded',
-                'url_num_freq_encoded', 'country_mention_num_freq_encoded',
-                'token_count_freq_encoded', 'keyword_mean_encoded']
+                                                        'sentence_count_freq_encoded', 'stopword_num_freq_encoded',
+                                                        'hashtag_num_freq_encoded', 'at_num_freq_encoded',
+                                                        'url_num_freq_encoded', 'country_mention_num_freq_encoded',
+                                                        'token_count_freq_encoded', 'keyword_mean_encoded']
 
-XGBR_feature_importances = pd.Series(XGBC_model_tfidf.feature_importances_, index = index0).sort_values(ascending = False)
+XGBR_feature_importances = pd.Series(
+    XGBC_model_tfidf.feature_importances_, index=index0).sort_values(ascending=False)
 
 # keyword_mean_encoded                0.035902
 # country_mention_num_freq_encoded    0.015010
@@ -479,10 +500,3 @@ XGBR_feature_importances = pd.Series(XGBC_model_tfidf.feature_importances_, inde
 # XGBC_model_tfidf_pred = XGBC_model_tfidf.predict(vect_tfidf.transform(X_test))
 # XGBC_model_tfidf_pred = pd.Series(XGBC_model_tfidf_pred, index = testData['id'], name = 'sentiment')
 # XGBC_model_tfidf_pred.to_csv('y_test_pred_tfidf_XGBC.csv')
-
-
-
-
-
-
-

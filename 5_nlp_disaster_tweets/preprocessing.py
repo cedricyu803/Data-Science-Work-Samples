@@ -57,7 +57,7 @@ Columns
 
 """
 
-#%% This file
+# %% This file
 
 """
 text pre-processing, feature extractions, engineering including encoding
@@ -65,7 +65,7 @@ text pre-processing, feature extractions, engineering including encoding
 """
 
 
-#%% Workflow
+# %% Workflow
 
 """
 # load dataset and train-validation split
@@ -112,40 +112,46 @@ hashtag and mentions lists for each Tweet: also pre-process and feed to LSTM?
 """
 
 
-#%% Preamble
+# %% Preamble
 
 
-import pandas as pd
 # Make the output look better
+from geotext import GeoText
+import category_encoders as ce
+from nltk.corpus import stopwords
+import nltk
+from bs4 import BeautifulSoup
+from sklearn.model_selection import train_test_split
+import os
+import seaborn as sns
+import re
+import matplotlib.pyplot as plt
+import pandas as pd
+import numpy as np
 pd.set_option('display.max_rows', 500)
 pd.set_option('display.max_columns', 500)
 # pd.set_option('display.width', 1000)
 pd.set_option('display.max_colwidth', None)
-pd.options.mode.chained_assignment = None  # default='warn' # ignores warning about dropping columns inplace
-import numpy as np
-import matplotlib.pyplot as plt
-import re
-import seaborn as sns
+# default='warn' # ignores warning about dropping columns inplace
+pd.options.mode.chained_assignment = None
 
-import os
 os.chdir(r'C:\Users\Cedric Yu\Desktop\Works\9_nlp_disaster_tweets')
 
-#%% load datasets
+# %% load datasets
 
 
-train = pd.read_csv ("train.csv", header = [0])
-X_test = pd.read_csv ("test.csv", header = [0])
+train = pd.read_csv("train.csv", header=[0])
+X_test = pd.read_csv("test.csv", header=[0])
 
 
-#%% train-validation split
+# %% train-validation split
 
 
-from sklearn.model_selection import train_test_split
+X_train, X_valid, y_train, y_valid = train_test_split(train.drop(
+    ['target'], axis=1), train['target'], random_state=0, train_size=0.8)
 
-X_train, X_valid, y_train, y_valid = train_test_split(train.drop(['target'], axis = 1), train['target'], random_state=0, train_size = 0.8)
 
-
-#%% pre-processing
+# %% pre-processing
 
 """
 text pre-processing.
@@ -156,32 +162,32 @@ text pre-processing.
 
 """remove mojibake"""
 
-from bs4 import BeautifulSoup
 
 def no_mojibake(row):
     row['text_no_mojibake'] = BeautifulSoup(row['text']).get_text().strip()
     return row
 
-X_train = X_train.apply(no_mojibake, axis = 1)
-X_valid = X_valid.apply(no_mojibake, axis = 1)
-X_test = X_test.apply(no_mojibake, axis = 1)
+
+X_train = X_train.apply(no_mojibake, axis=1)
+X_valid = X_valid.apply(no_mojibake, axis=1)
+X_test = X_test.apply(no_mojibake, axis=1)
 
 """ text pre-processing"""
 
+
 def text_preprocess(text):
     # remove html syntax and strip front and end whitespace (already did)
-    # text1 = BeautifulSoup(text).get_text() 
-    
+    # text1 = BeautifulSoup(text).get_text()
+
     # expand abbreviation n't to not and 's to  s
     text1 = re.sub(r"n't", ' not', text)
     text1 = re.sub(r"'s", ' s', text1)
-    
-    
+
     # replace url by '<url>' token
     text1 = re.sub(r'(https?://[\S]*)', '<url>', text1)
     # replace @mention by '<user>' token
     text1 = re.sub(r'@\w+', "<user>", text1)
-    
+
     # replace # by <hashtag> token, and split the hashtag_body by capital letters unless it is all cap
     hash_iter = list(filter(None, re.findall(r'#(\w+)', text1)))
     if len(hash_iter) > 0:
@@ -189,20 +195,22 @@ def text_preprocess(text):
             if item.isupper() == True:
                 hash_words = item + ' <allcaps>'
             else:
-                hash_words = ' '.join(list(filter(None, re.split(r'([A-Z]?[a-z]*)', item))))
+                hash_words = ' '.join(
+                    list(filter(None, re.split(r'([A-Z]?[a-z]*)', item))))
             text1 = re.sub(item, hash_words, text1)
             text1 = re.sub(r'#', '<hashtag> ', text1)
-    
+
     # represent numbers by '<number>' token
     text1 = re.sub(r'[-+]?[.\d]*[\d]+[:,.\d]*', ' <number> ', text1)
-    
+
     # replace repeated punctuation marks (!?. only) by punctuation mark + <repeat> token
     text1 = re.sub(r'([!?\.]){2,}', r'\1' + ' <repeat>', text1)
     # add spaces before and after (!?.)
     text1 = re.sub(r'([!?\.])', r' \1 ', text1)
-    
+
     # replace punctuation marks (except ?!.) by <punc> token
-    text1 = re.sub(r'[\"#$%\&\'\(\)\*\+,\-/:;=@\[\]\^_`\{\|\}~\\]+', ' <punc> ', text1)
+    text1 = re.sub(
+        r'[\"#$%\&\'\(\)\*\+,\-/:;=@\[\]\^_`\{\|\}~\\]+', ' <punc> ', text1)
     text1 = re.sub(r'(<[^A-Za-z0-9_-]+|[^A-Za-z0-9_-]+>)', ' <punc> ', text1)
 
     # remove extra whitespaces
@@ -214,19 +222,18 @@ def text_preprocess(text):
 
     # lower case
     text1 = text1.lower()
-    
+
     return text1
+
 
 def pd_text_preprocess(row):
     row['text_processed'] = text_preprocess(row['text_no_mojibake'])
     return row
 
 
-
-X_train = X_train.apply(pd_text_preprocess, axis = 1)
-X_valid = X_valid.apply(pd_text_preprocess, axis = 1)
-X_test = X_test.apply(pd_text_preprocess, axis = 1)
-
+X_train = X_train.apply(pd_text_preprocess, axis=1)
+X_valid = X_valid.apply(pd_text_preprocess, axis=1)
+X_test = X_test.apply(pd_text_preprocess, axis=1)
 
 
 """
@@ -245,22 +252,26 @@ X_test_text_preprocessed = X_test[['text_processed']].to_numpy()
 
 """ if you want lemmatised text"""
 
-import nltk
 WNlemma_n = nltk.WordNetLemmatizer()
+
 
 def nltk_lemmatize(text):
     # text1 = nltk.word_tokenize(text)
     text1 = WNlemma_n.lemmatize(text)
     return text1
 
+
 def pd_nltk_lemmatize(row):
     row['text_processed'] = nltk_lemmatize(row['text_processed'])
     return row
 
 
-X_train_text_preprocessed_lemmatized = X_train[['text_processed']].apply(pd_nltk_lemmatize, axis = 1).to_numpy()
-X_valid_text_preprocessed_lemmatized = X_valid[['text_processed']].apply(pd_nltk_lemmatize, axis = 1).to_numpy()
-X_test_text_preprocessed_lemmatized = X_test[['text_processed']].apply(pd_nltk_lemmatize, axis = 1).to_numpy()
+X_train_text_preprocessed_lemmatized = X_train[['text_processed']].apply(
+    pd_nltk_lemmatize, axis=1).to_numpy()
+X_valid_text_preprocessed_lemmatized = X_valid[['text_processed']].apply(
+    pd_nltk_lemmatize, axis=1).to_numpy()
+X_test_text_preprocessed_lemmatized = X_test[['text_processed']].apply(
+    pd_nltk_lemmatize, axis=1).to_numpy()
 
 
 # np.save('X_train_text_preprocessed_lemmatized.npy', X_train_text_preprocessed_lemmatized)
@@ -268,7 +279,6 @@ X_test_text_preprocessed_lemmatized = X_test[['text_processed']].apply(pd_nltk_l
 # np.save('X_test_text_preprocessed_lemmatized.npy', X_test_text_preprocessed_lemmatized)
 # np.save('y_train.npy', y_train)
 # np.save('y_valid.npy', y_valid)
-
 
 
 # """ get token count from processed text"""
@@ -285,7 +295,7 @@ X_test_text_preprocessed_lemmatized = X_test[['text_processed']].apply(pd_nltk_l
 # # max number of tokens is 107 in the processed datasets
 
 
-#%% load embedding matrix pre-trained using glove
+# %% load embedding matrix pre-trained using glove
 
 # https://nlp.stanford.edu/projects/glove/
 # Twitter (2B tweets, 27B tokens, 1,193,514 vocab, uncased, 25d, 50d, 100d, & 200d vectors)
@@ -314,8 +324,10 @@ def read_glove_vecs(glove_file):
             i = i + 1
     return words_to_index, index_to_words, word_to_vec_map
 
+
 # index is valued  from 1 to 1193514
-word_to_index, index_to_word, word_to_vec_map = read_glove_vecs('glove.twitter.27B/glove.twitter.27B.100d.txt')
+word_to_index, index_to_word, word_to_vec_map = read_glove_vecs(
+    'glove.twitter.27B/glove.twitter.27B.100d.txt')
 
 # [(i, index_to_word[i]) for i, vec in enumerate(list(word_to_vec_map.values())) if len(vec) != 100]
 # []
@@ -324,16 +336,16 @@ word_to_index, index_to_word, word_to_vec_map = read_glove_vecs('glove.twitter.2
 # contains <hashtag>, <user>, <url>, <repeat>, <number>
 
 
-#%% tokenise and pad text for neural networks
+# %% tokenise and pad text for neural networks
 
 # max number of tokens is 107 in the processed datasets
 # there are special tokens such as <hashtag>; using ntk.word_tokenized will break them apart. tokens in pre-processed text are separated by a single space
 
-def tokenize_pad_text(X, max_len = 128):
-    
+def tokenize_pad_text(X, max_len=128):
+
     X_ = X.squeeze()
     Xtokenized = []
-    
+
     for m in range(len(X_)):
         # tokenise
         text1 = X_[m].split(' ')
@@ -343,48 +355,52 @@ def tokenize_pad_text(X, max_len = 128):
         if len(text1) > max_len:
             text1 = [word for i, word in enumerate(text1) if i < max_len]
         Xtokenized.append(text1)
-    
+
     Xtokenized = np.array(Xtokenized)
     return Xtokenized
 
 
 max_len = 128
 
-X_train_tokenize_pad = tokenize_pad_text(X_train_text_preprocessed, max_len = max_len)
-X_valid_tokenize_pad = tokenize_pad_text(X_valid_text_preprocessed, max_len = max_len)
-X_test_tokenize_pad = tokenize_pad_text(X_test_text_preprocessed, max_len = max_len)
+X_train_tokenize_pad = tokenize_pad_text(
+    X_train_text_preprocessed, max_len=max_len)
+X_valid_tokenize_pad = tokenize_pad_text(
+    X_valid_text_preprocessed, max_len=max_len)
+X_test_tokenize_pad = tokenize_pad_text(
+    X_test_text_preprocessed, max_len=max_len)
 
 
-#%% function that converts training sentences into indices with padding
+# %% function that converts training sentences into indices with padding
 
 # set unknown and padded tokens to 0; the embedding vectors will be zero-vectors
 
 padded_token_index = 0
 unknown_token_index = 0
 
+
 def sentences_to_indices(X, word_to_index):
     """
     Converts an array of [padded, tokenised sentences] into an array of indices corresponding to words in the sentences.
     The output shape should be such that it can be given to 'Embedding()'
-    
+
     Arguments:
     X -- array of padded, tokenised sentences, of shape (m, max_len)
     word_to_index -- a dictionary containing the each word mapped to its index
-    
+
     Returns:
     X_indices -- array of indices corresponding to words in the sentences from X, of shape (m, max_len)
     """
     # set padded tokens to index = padded_token_index
     word_to_index0 = word_to_index.copy()
     word_to_index0['-1 empty'] = padded_token_index
-    
+
     # set unknown tokens to index = unknown_token_index
     def word_to_index00(key):
         return word_to_index0.get(key, unknown_token_index)
-    
+
     # speed up computation with vectorisation
     X_indices = np.vectorize(word_to_index00)(X)
-    
+
     return X_indices
 
 
@@ -405,65 +421,65 @@ X_test_indices = sentences_to_indices(X_test_tokenize_pad, word_to_index)
 # X_valid_indices = np.load('X_valid_indices.npy')
 # X_test_indices = np.load('X_test_indices.npy')
 
-#%% feature extractions 
+# %% feature extractions
 
 
-import nltk
-from nltk.corpus import stopwords
 stops = set(stopwords.words('english'))
-
-from geotext import GeoText
 
 
 def get_features(row):
-    
+
     # character count
     row['char_count'] = len(row['text_no_mojibake'])
-    
+
     # punctuation mark and capital letter to character length ratios
-    row['punc_ratio'] = len(''.join(re.findall(r'[\.\?!\"#$%\&\'\(\)\*\+,\-/:;=@\[\]\^_`\{\|\}~\\]+', row['text_no_mojibake']))) / len(row['text_no_mojibake'])
-    row['cap_ratio'] = len(''.join(re.findall(r'[A-Z]', row['text_no_mojibake']))) / len(row['text_no_mojibake'])
-    
+    row['punc_ratio'] = len(''.join(re.findall(
+        r'[\.\?!\"#$%\&\'\(\)\*\+,\-/:;=@\[\]\^_`\{\|\}~\\]+', row['text_no_mojibake']))) / len(row['text_no_mojibake'])
+    row['cap_ratio'] = len(''.join(re.findall(
+        r'[A-Z]', row['text_no_mojibake']))) / len(row['text_no_mojibake'])
+
     # number of sentences
     row['sentence_count'] = len(nltk.sent_tokenize(row['text_no_mojibake']))
-    
+
     # number of stopwords
     tokens = nltk.word_tokenize(row['text_processed'])
     stop_wordsn = len([token for token in tokens if token in stops])
     row['stopword_num'] = stop_wordsn
-    
+
     # hashtags
     hashtags_list = re.findall(r'#(\w+)', row['text_no_mojibake'])
     hashtags_list = list(filter(None, hashtags_list))
     row['hashtags'] = hashtags_list
     row['hashtag_num'] = len(hashtags_list)
-    
+
     # mentions
     at_list = re.findall(r'@(\w+)', row['text_no_mojibake'])
     at_list = list(filter(None, at_list))
     row['at'] = at_list
     row['at_num'] = len(at_list)
-    
+
     # URLs
     url_list = re.findall(r'(https?://[\S]*)', row['text_no_mojibake'])
     url_list = list(filter(None, url_list))
     row['url'] = url_list
     row['url_num'] = len(url_list)
-    
+
     # country mentions
     if len(list(zip(*GeoText(row['text_no_mojibake']).country_mentions.items()))) > 0:
-        row['country_mention_num'] = np.array(list(zip(*GeoText(row['text_no_mojibake']).country_mentions.items()))[1]).sum()
-    else: 
+        row['country_mention_num'] = np.array(
+            list(zip(*GeoText(row['text_no_mojibake']).country_mentions.items()))[1]).sum()
+    else:
         row['country_mention_num'] = 0
-    
+
     # token count
     row['token_count'] = len(nltk.word_tokenize(row['text_processed']))
-    
+
     return row
 
-X_train = X_train.apply(get_features, axis = 1)
-X_valid = X_valid.apply(get_features, axis = 1)
-X_test = X_test.apply(get_features, axis = 1)
+
+X_train = X_train.apply(get_features, axis=1)
+X_valid = X_valid.apply(get_features, axis=1)
+X_test = X_test.apply(get_features, axis=1)
 
 
 X_train_hashmention = X_train[['hashtags', 'at']]
@@ -471,10 +487,12 @@ X_valid_hashmention = X_valid[['hashtags', 'at']]
 X_test_hashmention = X_test[['hashtags', 'at']]
 
 
-X_train_no_text = X_train[['id', 'keyword', 'char_count', 'punc_ratio', 'cap_ratio', 'sentence_count', 'stopword_num', 'hashtag_num', 'at_num', 'url_num', 'country_mention_num', 'token_count']]
-X_valid_no_text = X_valid[['id', 'keyword', 'char_count', 'punc_ratio', 'cap_ratio', 'sentence_count', 'stopword_num', 'hashtag_num', 'at_num', 'url_num', 'country_mention_num', 'token_count']]
-X_test_no_text = X_test[['id', 'keyword', 'char_count', 'punc_ratio', 'cap_ratio', 'sentence_count', 'stopword_num', 'hashtag_num', 'at_num', 'url_num', 'country_mention_num', 'token_count']]
-
+X_train_no_text = X_train[['id', 'keyword', 'char_count', 'punc_ratio', 'cap_ratio', 'sentence_count',
+                           'stopword_num', 'hashtag_num', 'at_num', 'url_num', 'country_mention_num', 'token_count']]
+X_valid_no_text = X_valid[['id', 'keyword', 'char_count', 'punc_ratio', 'cap_ratio', 'sentence_count',
+                           'stopword_num', 'hashtag_num', 'at_num', 'url_num', 'country_mention_num', 'token_count']]
+X_test_no_text = X_test[['id', 'keyword', 'char_count', 'punc_ratio', 'cap_ratio', 'sentence_count',
+                         'stopword_num', 'hashtag_num', 'at_num', 'url_num', 'country_mention_num', 'token_count']]
 
 
 # np.save('X_train_hashmention.npy', X_train_hashmention)
@@ -485,17 +503,14 @@ X_test_no_text = X_test[['id', 'keyword', 'char_count', 'punc_ratio', 'cap_ratio
 # np.save('X_test_no_text.npy', X_test_no_text)
 
 
-
-#%% feature encoding
-
-
-import category_encoders as ce
+# %% feature encoding
 
 
 """# frequency-encoding"""
 
 
-freq_cols = ['sentence_count', 'stopword_num', 'hashtag_num', 'at_num', 'url_num', 'country_mention_num', 'token_count']
+freq_cols = ['sentence_count', 'stopword_num', 'hashtag_num',
+             'at_num', 'url_num', 'country_mention_num', 'token_count']
 
 # change data type to object before feeding it into the encoder
 X_train_no_text[freq_cols] = X_train_no_text[freq_cols].astype(object)
@@ -507,14 +522,16 @@ freq_encoder = ce.count.CountEncoder()
 freq_encoder.fit(X_train_no_text[freq_cols])
 
 
-X_train_no_text_encoded1 = pd.concat([X_train_no_text, freq_encoder.transform(X_train_no_text[freq_cols]).rename(columns = dict(zip(freq_cols, [col + '_freq_encoded' for col in freq_cols])))], axis = 1).drop(freq_cols, axis = 1)
+X_train_no_text_encoded1 = pd.concat([X_train_no_text, freq_encoder.transform(X_train_no_text[freq_cols]).rename(
+    columns=dict(zip(freq_cols, [col + '_freq_encoded' for col in freq_cols])))], axis=1).drop(freq_cols, axis=1)
 
 
-X_valid_no_text_encoded1 = pd.concat([X_valid_no_text, freq_encoder.transform(X_valid_no_text[freq_cols]).rename(columns = dict(zip(freq_cols, [col + '_freq_encoded' for col in freq_cols])))], axis = 1).drop(freq_cols, axis = 1)
+X_valid_no_text_encoded1 = pd.concat([X_valid_no_text, freq_encoder.transform(X_valid_no_text[freq_cols]).rename(
+    columns=dict(zip(freq_cols, [col + '_freq_encoded' for col in freq_cols])))], axis=1).drop(freq_cols, axis=1)
 
 
-X_test_no_text_encoded1 = pd.concat([X_test_no_text, freq_encoder.transform(X_test_no_text[freq_cols]).rename(columns = dict(zip(freq_cols, [col + '_freq_encoded' for col in freq_cols])))], axis = 1).drop(freq_cols, axis = 1)
-
+X_test_no_text_encoded1 = pd.concat([X_test_no_text, freq_encoder.transform(X_test_no_text[freq_cols]).rename(
+    columns=dict(zip(freq_cols, [col + '_freq_encoded' for col in freq_cols])))], axis=1).drop(freq_cols, axis=1)
 
 
 """# target mean encoding"""
@@ -526,13 +543,16 @@ target_mean_cols = ['keyword']
 target_mean_encoder = ce.target_encoder.TargetEncoder()
 target_mean_encoder.fit(X_train_no_text_encoded1[target_mean_cols], y_train)
 
-X_train_no_text_encoded2 = pd.concat([X_train_no_text_encoded1, target_mean_encoder.transform(X_train_no_text_encoded1[target_mean_cols]).rename(columns = dict(zip(target_mean_cols, [col + '_mean_encoded' for col in target_mean_cols])))], axis = 1).drop(target_mean_cols, axis = 1)
+X_train_no_text_encoded2 = pd.concat([X_train_no_text_encoded1, target_mean_encoder.transform(X_train_no_text_encoded1[target_mean_cols]).rename(
+    columns=dict(zip(target_mean_cols, [col + '_mean_encoded' for col in target_mean_cols])))], axis=1).drop(target_mean_cols, axis=1)
 
 
-X_valid_no_text_encoded2 = pd.concat([X_valid_no_text_encoded1, target_mean_encoder.transform(X_valid_no_text_encoded1[target_mean_cols]).rename(columns = dict(zip(target_mean_cols, [col + '_mean_encoded' for col in target_mean_cols])))], axis = 1).drop(target_mean_cols, axis = 1)
+X_valid_no_text_encoded2 = pd.concat([X_valid_no_text_encoded1, target_mean_encoder.transform(X_valid_no_text_encoded1[target_mean_cols]).rename(
+    columns=dict(zip(target_mean_cols, [col + '_mean_encoded' for col in target_mean_cols])))], axis=1).drop(target_mean_cols, axis=1)
 
 
-X_test_no_text_encoded2 = pd.concat([X_test_no_text_encoded1, target_mean_encoder.transform(X_test_no_text_encoded1[target_mean_cols]).rename(columns = dict(zip(target_mean_cols, [col + '_mean_encoded' for col in target_mean_cols])))], axis = 1).drop(target_mean_cols, axis = 1)
+X_test_no_text_encoded2 = pd.concat([X_test_no_text_encoded1, target_mean_encoder.transform(X_test_no_text_encoded1[target_mean_cols]).rename(
+    columns=dict(zip(target_mean_cols, [col + '_mean_encoded' for col in target_mean_cols])))], axis=1).drop(target_mean_cols, axis=1)
 
 
 """drop columns"""
@@ -542,7 +562,6 @@ cols_to_keep = ['char_count', 'punc_ratio', 'cap_ratio',
                 'hashtag_num_freq_encoded', 'at_num_freq_encoded',
                 'url_num_freq_encoded', 'country_mention_num_freq_encoded',
                 'token_count_freq_encoded', 'keyword_mean_encoded']
-
 
 
 X_train_no_text_encoded2 = X_train_no_text_encoded2[cols_to_keep]
@@ -582,8 +601,10 @@ X_test_no_text_encoded2 = X_test_no_text_encoded2[cols_to_keep]
 # dtype: int64
 
 
-X_valid_no_text_encoded2 = X_valid_no_text_encoded2.fillna(X_train_no_text_encoded2.mean())
-X_test_no_text_encoded2 = X_test_no_text_encoded2.fillna(X_train_no_text_encoded2.mean())
+X_valid_no_text_encoded2 = X_valid_no_text_encoded2.fillna(
+    X_train_no_text_encoded2.mean())
+X_test_no_text_encoded2 = X_test_no_text_encoded2.fillna(
+    X_train_no_text_encoded2.mean())
 
 # !!! not yet normalised
 
@@ -592,17 +613,7 @@ X_test_no_text_encoded2 = X_test_no_text_encoded2.fillna(X_train_no_text_encoded
 # np.save('X_test_no_text_encoded2.npy', X_test_no_text_encoded2)
 
 
-
-
-
 # y_train = np.load('y_train.npy')
 # y_valid = np.load('y_valid.npy')
 # y_train1 = np.expand_dims(y_train, -1)
 # y_valid1 = np.expand_dims(y_valid, -1)
-
-
-
-
-
-
-

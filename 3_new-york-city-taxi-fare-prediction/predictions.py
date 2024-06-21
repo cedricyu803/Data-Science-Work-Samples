@@ -5,7 +5,7 @@ Created on Wed Sep 08 19:00:00 2021
 @author: Cedric Yu
 """
 
-#%%
+# %%
 """
 #####################################
 
@@ -49,56 +49,60 @@ File descriptions
 
 """
 
-#%% 
+# %%
 
 """
 model training
 """
 
-#%% Preamble
+# %% Preamble
 
-import pandas as pd
 # Make the output look better
+from pickle import load
+import os
+import gc
+import seaborn as sns
+import matplotlib.pyplot as plt
+import numpy as np
+import pandas as pd
 pd.set_option('display.max_rows', 500)
 pd.set_option('display.max_columns', 500)
 # pd.set_option('display.width', 1000)
-pd.options.mode.chained_assignment = None  # default='warn' # ignores warning about dropping columns inplace
-import numpy as np
-import matplotlib.pyplot as plt
-import seaborn as sns
-import gc
+# default='warn' # ignores warning about dropping columns inplace
+pd.options.mode.chained_assignment = None
 
 # import dask
 # import dask.dataframe as dd
 
 
-import os
 os.chdir(r'C:\Users\Cedric Yu\Desktop\Works\7_new-york-city-taxi-fare-prediction')
 
-#%% test dataset
+# %% test dataset
 
 
-#%% predict
+# %% predict
 
-test_df_cols = pd.read_csv('engineered_datasets/test_df_datetime.csv', nrows=0).columns
+test_df_cols = pd.read_csv(
+    'engineered_datasets/test_df_datetime.csv', nrows=0).columns
 test_df_cols = test_df_cols.drop(['Unnamed: 0']).tolist()
 
-X_test_encoded4 = pd.read_csv(r'engineered_datasets\test_df_datetime.csv', usecols = test_df_cols)
+X_test_encoded4 = pd.read_csv(
+    r'engineered_datasets\test_df_datetime.csv', usecols=test_df_cols)
 
 X_test_id = X_test_encoded4['key'].copy()
-X_test_encoded4 = X_test_encoded4.drop('key', axis = 1)
+X_test_encoded4 = X_test_encoded4.drop('key', axis=1)
 
-from pickle import load
 LGBMreg = load(open('LGBMreg.pkl', 'rb'))
 
-y_test_predict = pd.Series(LGBMreg.predict(X_test_encoded4), index= X_test_id, name='fare_amount')
+y_test_predict = pd.Series(LGBMreg.predict(
+    X_test_encoded4), index=X_test_id, name='fare_amount')
 
 y_test_predict.to_csv('predictions/y_test_predict_LGBMreg.csv')
 
 
-
-fig = plt.figure('fare_amount_test_hist', dpi = 150)
-y_test_predict.to_frame()['fare_amount'].hist(bins = 100, grid = False, ax = plt.gca(), color = 'tomato')
+fig = plt.figure('fare_amount_test_hist', dpi=150)
+y_test_predict.to_frame()['fare_amount'].hist(
+    bins=100, grid=False, ax=plt.gca(), color='tomato')
 plt.yscale('log')
 ax = plt.gca()
 ax.set_xlabel('Fare amount in USD')
@@ -107,8 +111,3 @@ ax.spines['top'].set_visible(False)
 ax.spines['right'].set_visible(False)
 plt.xlim(-0.1,)
 # plt.savefig('plots/fare_amount_pred_hist.png', dpi = 150)
-
-
-
-
-

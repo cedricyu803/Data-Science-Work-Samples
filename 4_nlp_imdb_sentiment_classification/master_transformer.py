@@ -57,14 +57,14 @@ sentiment - Sentiment of the review; 1 for positive reviews and 0 for negative r
 review - Text of the review
 """
 
-#%% This file
+# %% This file
 
 """
 uses BertForSequenceClassification and pre-trained bert-base-uncased from hugging face transformers
 https://huggingface.co/bert-base-uncased
 """
 
-#%% Workflow
+# %% Workflow
 
 """
 # load datasets and clean text
@@ -80,40 +80,46 @@ https://huggingface.co/bert-base-uncased
 """
 
 
-#%% Preamble
+# %% Preamble
 
-import pandas as pd
 # Make the output look better
+import tensorflow as tf
+from transformers import TFBertForSequenceClassification
+from transformers import BertTokenizerFast
+from sklearn.model_selection import train_test_split
+import nltk
+import re
+import os
+import seaborn as sns
+import matplotlib.pyplot as plt
+import numpy as np
+from bs4 import BeautifulSoup
+import pandas as pd
 pd.set_option('display.max_rows', 500)
 pd.set_option('display.max_columns', 500)
 # pd.set_option('display.width', 1000)
 pd.set_option('display.max_colwidth', None)
-pd.options.mode.chained_assignment = None  # default='warn' # ignores warning about dropping columns inplace
-import numpy as np
-import matplotlib.pyplot as plt
+# default='warn' # ignores warning about dropping columns inplace
+pd.options.mode.chained_assignment = None
 # import re
-import seaborn as sns
 
-import os
 os.chdir(r'C:\Users\Cedric Yu\Desktop\Works\8_nlp_imdb_sentiment_classification')
 
 
-#%% functions for preprocessing, tokenisation and padding
+# %% functions for preprocessing, tokenisation and padding
 
-import re
-import nltk
 # from nltk.corpus import stopwords
 
 # for getting rid of html syntax
-from bs4 import BeautifulSoup    
 
 """preprocess text by removing html syntax, unimportant punctuation marks (e.g. ..., --), lowering case, and lemmatizing. Then tokenise and pad to max_len"""
 
 # WNlemma_n = nltk.WordNetLemmatizer()
 
-def text_preprocess(text, pad = False, max_len=3000):
+
+def text_preprocess(text, pad=False, max_len=3000):
     # remove html syntax
-    text1 = BeautifulSoup(text).get_text() 
+    text1 = BeautifulSoup(text).get_text()
     # get rid of unimportant punctuation marks
     # !!! get rid of apostrophe too (and single quotation marks)
     # text1 = re.sub(r'([^\d\w\'\s\.\-]+|[-\.]{2,})', ' ', text1)
@@ -135,35 +141,36 @@ def text_preprocess(text, pad = False, max_len=3000):
     return text1
 
 
-def pd_text_preprocess(row, pad = False, max_len=3000):
-    row['review_preprocessed'] = text_preprocess(row['review'], pad = True, max_len = max_len)
+def pd_text_preprocess(row, pad=False, max_len=3000):
+    row['review_preprocessed'] = text_preprocess(
+        row['review'], pad=True, max_len=max_len)
     # row['length'] = len(row['review_preprocessed'])
     return row
 
 
-#%% load datasets labeledTrainData.tsv and testData.tsv
+# %% load datasets labeledTrainData.tsv and testData.tsv
 
-labeledTrainData = pd.read_csv ("labeledTrainData.tsv", sep = '\t', header = [0])
-testData = pd.read_csv ("testData.tsv", sep = '\t', header = [0])
+labeledTrainData = pd.read_csv("labeledTrainData.tsv", sep='\t', header=[0])
+testData = pd.read_csv("testData.tsv", sep='\t', header=[0])
 
 """pre-processing"""
-labeledTrainData = labeledTrainData.apply(pd_text_preprocess, axis = 1)
+labeledTrainData = labeledTrainData.apply(pd_text_preprocess, axis=1)
 
 # X_test is np.array of shape (m, max_len)
-testData = testData.apply(pd_text_preprocess, axis = 1)
+testData = testData.apply(pd_text_preprocess, axis=1)
 X_test = testData['review_preprocessed']
 
 
-#%% train-validation split
+# %% train-validation split
 
-from sklearn.model_selection import train_test_split
 
-X_train, X_valid, y_train, y_valid = train_test_split(labeledTrainData['review_preprocessed'], labeledTrainData['sentiment'], random_state=0, train_size = 0.8)
+X_train, X_valid, y_train, y_valid = train_test_split(
+    labeledTrainData['review_preprocessed'], labeledTrainData['sentiment'], random_state=0, train_size=0.8)
 
 y_train1 = y_train.to_list()
 y_valid1 = y_valid.to_list()
 
-#%% tokenisation and target label alignment with the huggingface library
+# %% tokenisation and target label alignment with the huggingface library
 
 """
 Before feeding the texts to a Transformer model, we will need to tokenize our input using a huggingface Transformer tokenizer. 
@@ -181,21 +188,24 @@ Our problem is many-to-one; the target of each instance is one label, so we can 
 All we need to do is to tokenise and pad sentences
 """
 
-from transformers import BertTokenizerFast
-tokenizer = BertTokenizerFast.from_pretrained('pre-trained-transformer-bert-base-uncased/')
+tokenizer = BertTokenizerFast.from_pretrained(
+    'pre-trained-transformer-bert-base-uncased/')
 
 
 max_len = 512
 
-X_train_tokenized = tokenizer(X_train.values.tolist(), truncation=True, is_split_into_words=False, padding='max_length', max_length=max_len)
+X_train_tokenized = tokenizer(X_train.values.tolist(
+), truncation=True, is_split_into_words=False, padding='max_length', max_length=max_len)
 X_train_tokenized_ids = X_train_tokenized['input_ids']
 
 
-X_valid_tokenized = tokenizer(X_valid.values.tolist(), truncation=True, is_split_into_words=False, padding='max_length', max_length=max_len)
+X_valid_tokenized = tokenizer(X_valid.values.tolist(
+), truncation=True, is_split_into_words=False, padding='max_length', max_length=max_len)
 X_valid_tokenized_ids = X_valid_tokenized['input_ids']
 
 
-X_test_tokenized = tokenizer(X_test.values.tolist(), truncation=True, is_split_into_words=False, padding='max_length', max_length=max_len)
+X_test_tokenized = tokenizer(X_test.values.tolist(
+), truncation=True, is_split_into_words=False, padding='max_length', max_length=max_len)
 X_test_tokenized_ids = X_test_tokenized['input_ids']
 
 
@@ -237,18 +247,15 @@ examples
 """ ---------------- end of example ----------------"""
 
 
-
-
-#%% optimisation
+# %% optimisation
 
 """
 feed data into a pretrained 🤗 model. optimize a DistilBERT model, which matches the tokenizer used to preprocess your data
 """
 
-import tensorflow as tf
-from transformers import TFBertForSequenceClassification
 
-Bert_trans_model = TFBertForSequenceClassification.from_pretrained('pre-trained-transformer-bert-base-uncased/', num_labels=1)
+Bert_trans_model = TFBertForSequenceClassification.from_pretrained(
+    'pre-trained-transformer-bert-base-uncased/', num_labels=1)
 
 # load pre-trained(x2) weights
 Bert_trans_model.load_weights('transformer_model_weights.h5')
@@ -264,13 +271,15 @@ Bert_trans_model.load_weights('transformer_model_weights.h5')
 my_loss = tf.keras.losses.BinaryCrossentropy(from_logits=True)
 
 optimizer = tf.keras.optimizers.Adam(learning_rate=1e-5)
-Bert_trans_model.compile(loss=my_loss, optimizer=optimizer, metrics=[tf.keras.metrics.AUC(from_logits=True)])
+Bert_trans_model.compile(loss=my_loss, optimizer=optimizer, metrics=[
+                         tf.keras.metrics.AUC(from_logits=True)])
 
 # callback = tf.keras.callbacks.EarlyStopping(
 #     monitor='val_loss', patience=2, restore_best_weights=True)
 
 # if you get GPU 'Resource exhausted: failed to allocate memory', reduce batch size
-history = Bert_trans_model.fit(X_train_tokenized_ids, y_train1, validation_data = (X_valid_tokenized_ids, y_valid1), epochs = 2, batch_size = 4)
+history = Bert_trans_model.fit(X_train_tokenized_ids, y_train1, validation_data=(
+    X_valid_tokenized_ids, y_valid1), epochs=2, batch_size=4)
 # Epoch 1/2
 # 5000/5000 [==============================] - 1641s 326ms/step - loss: 0.2711 - auc: 0.9547 - val_loss: 0.1858 - val_auc: 0.9787
 # Epoch 2/2
@@ -281,27 +290,27 @@ history = Bert_trans_model.fit(X_train_tokenized_ids, y_train1, validation_data 
 # Bert_trans_model.save_weights('transformer_model_weights.h5')
 
 
-#%% predict
+# %% predict
 
 def sigmoid(x):
     return 1 / (1 + np.exp(-x))
 
+
 prediction = Bert_trans_model.predict(X_test_tokenized_ids).logits    # logits
-prediction = sigmoid(prediction)    #  apply sigmoid
+prediction = sigmoid(prediction)  # apply sigmoid
 prediction_bool = (prediction > 0.5).astype(int)
 prediction_bool = prediction_bool.squeeze()
-testData = pd.read_csv ("testData.tsv", sep = '\t', header = [0])
-transformer_pred = pd.Series(prediction_bool, index = testData['id'], name = 'sentiment')
+testData = pd.read_csv("testData.tsv", sep='\t', header=[0])
+transformer_pred = pd.Series(
+    prediction_bool, index=testData['id'], name='sentiment')
 transformer_pred.to_csv('transformer_pred.csv')
 
 
 # 0.92304  =)
 
 
-
 # tf.keras.backend.clear_session()
 
-# from numba import cuda 
+# from numba import cuda
 # device = cuda.get_current_device()
 # device.reset()
-
