@@ -1,4 +1,6 @@
-Last updated: December 2022
+Last updated: August 2024
+
+New in 2024: `8. End-to-end example with the Disater Tweet dataset`; linked from a separate [repo](https://github.com/cedricyu803/e2e_disaster_tweets).
 
 # Data Science Work Samples
 This folder contains select works I have done in data science and machine learning. <br>
@@ -67,3 +69,10 @@ We perform a named-entity recognition task on a dataset of resumes. Our approach
 We study the global temperatures dataset available on Kaggle. In the Jupyter notebook EDA_AR(3).ipynb, we perform an exploratory data analysis, and decide to take the yearly averages and only use the data from 1850-2015. We find a clear increasing trend (hence global 'warming'), which is rendered stationary by taking the first difference. The auto-correlation function (ACF) and partial auto-correlation function (PACF) suggest that the first difference can be described by an AR(3) model. We fit AR(3) models. In LSTM.ipynb, we make use of lag features and fit LSTM models on the series. For both models, we use fixed partitioning and rolling forecast.
 
 In the end, on the validation set (yearly average temperature in 1986-2015), the mean absolute error (MAE) from LSTM fitted on first difference using rolling forecast is the lowest: 0.14682. This is only slight lower than that from using fixed partition. It is to be compared to the MAE of 0.18931 from naive forecast (lag 1), and 0.15548 from the AR(3) model using rolling forecast.
+
+**8. End-to-end example with the Disater Tweet dataset**
+See https://github.com/cedricyu803/e2e_disaster_tweets.
+
+We provide an end-to-end example based on the 'Disaster Tweet Classification' example, which classifies a tweet (text string) into whether it is a disaster or not. Previously, we performed an exploratory data analysis and ran model architecture and hyperparameter searches, done in `5. Disaster Tweets Classification`.
+
+In a separate [repo](https://github.com/cedricyu803/e2e_disaster_tweets), we implement a) a training pipeline, b) an inference FastAPI backend, and c) an example Streamlit app to query the FastAPI backend.
