@@ -1,6 +1,6 @@
 Last updated: August 2024
 
-New in 2024: end-to-end example of 'Disaster Tweet Classification'; See 
+New in 2024: `8. End-to-end example with the Disater Tweet dataset`; linked from a separate [repo](https://github.com/cedricyu803/e2e_disaster_tweets).
 
 # Data Science Work Samples
 This folder contains select works I have done in data science and machine learning. <br>
