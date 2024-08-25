@@ -5,7 +5,7 @@ New in 2024:
   - Keyword: **PySpark**
   - Linked from a separate [repo](https://github.com/cedricyu803/blackblaze_hdd_pyspark)
 - "8. End-to-end example with the Disater Tweets dataset:
-  - Keywords: **FastAPI**, **Streamlit**
+  - Keywords: **FastAPI**, **Streamlit**, **GitHub workflow**
   - Linked from a separate [repo](https://github.com/cedricyu803/e2e_disaster_tweets).
 
 # Data Science Work Samples
@@ -92,7 +92,7 @@ In the end, on the validation set (yearly average temperature in 1986-2015), the
 
 **8. End-to-end example with the Disater Tweets dataset**
 
-**Keywords**: FastAPI, Streamlit, deployment, end-to-end (e2e), NLP, text preprocessing, NLTK, TfidfVectorizer
+**Keywords**: FastAPI, Streamlit, deployment, GitHub workflow, end-to-end (e2e), NLP, text preprocessing, NLTK, TfidfVectorizer
 
 See https://github.com/cedricyu803/e2e_disaster_tweets.
 
