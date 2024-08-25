@@ -1,6 +1,12 @@
 Last updated: August 2024
 
-New in 2024: `8. End-to-end example with the Disater Tweet dataset`; linked from a separate [repo](https://github.com/cedricyu803/e2e_disaster_tweets).
+New in 2024:
+- "9. Machine learning with **PySpark**: Blackblaze hard drive failure prediction"
+  - Keyword: **PySpark**
+  - Linked from a separate [repo](https://github.com/cedricyu803/blackblaze_hdd_pyspark)
+- "8. End-to-end example with the Disater Tweet dataset:
+  - Keywords: **FastAPI**, **Streamlit**
+  - Linked from a separate [repo](https://github.com/cedricyu803/e2e_disaster_tweets).
 
 # Data Science Work Samples
 This folder contains select works I have done in data science and machine learning. <br>
@@ -71,8 +77,15 @@ We study the global temperatures dataset available on Kaggle. In the Jupyter not
 In the end, on the validation set (yearly average temperature in 1986-2015), the mean absolute error (MAE) from LSTM fitted on first difference using rolling forecast is the lowest: 0.14682. This is only slight lower than that from using fixed partition. It is to be compared to the MAE of 0.18931 from naive forecast (lag 1), and 0.15548 from the AR(3) model using rolling forecast.
 
 **8. End-to-end example with the Disater Tweet dataset**
+
 See https://github.com/cedricyu803/e2e_disaster_tweets.
 
 We provide an end-to-end example based on the 'Disaster Tweet Classification' example, which classifies a tweet (text string) into whether it is a disaster or not. Previously, we performed an exploratory data analysis and ran model architecture and hyperparameter searches, done in `5. Disaster Tweets Classification`.
 
-In a separate [repo](https://github.com/cedricyu803/e2e_disaster_tweets), we implement a) a training pipeline, b) an inference FastAPI backend, and c) an example Streamlit app to query the FastAPI backend.
+In a separate [repo](https://github.com/cedricyu803/e2e_disaster_tweets), we implement a) a training pipeline, b) an inference **FastAPI** backend, and c) an example **Streamlit** app to query the FastAPI backend.
+
+**9. Machine learning with PySpark: Blackblaze hard drive failure prediction**
+
+See https://github.com/cedricyu803/blackblaze_hdd_pyspark.
+
+We provide an end-to-end PySpark example with the 'Blackblaze hard drive failure prediction' example, in which we predict from the S.M.A.R.T. telemetry from a hard drive whether it has failed. The goal of this exercise is to showcase the use of **PySpark** to perform data science tasks on a real dataset: from EDA, date cleaning and preprocessing, to feature engineering and scaling, ML model training, to inference.
