@@ -1,12 +1,15 @@
-Last updated: August 2024
+Last updated: October 2024
 
 New in 2024:
 - "9. Machine learning with **PySpark**: Blackblaze hard drive failure prediction"
-  - Keyword: **PySpark**
+  - Keywords: **PySpark**
   - Linked from a separate [repo](https://github.com/cedricyu803/blackblaze_hdd_pyspark)
-- "8. End-to-end example with the Disater Tweets dataset:
+- "8. End-to-end example with the Disater Tweets dataset"
   - Keywords: **FastAPI**, **Streamlit**, **GitHub workflow**
   - Linked from a separate [repo](https://github.com/cedricyu803/e2e_disaster_tweets).
+- "10. Audio data analysis (last updated 2022)"
+  - Keywords: **librosa**, audio processing, short-time Fourier transform (**STFT**), **spectrogram**, Mel-Frequency Cepstral Coefficients (**MFCC**s), spectral features, audio machine learning problem, CNN
+
 
 # Data Science Work Samples
 This folder contains select works I have done in data science and machine learning. <br>
@@ -110,7 +113,7 @@ We provide an end-to-end PySpark example with the 'Blackblaze hard drive failure
 
 **10. Audio data analysis**
 
-**Keywords**: librosa, audio processing, short-time Fourier transform, spectrogram, Mel-Frequency Cepstral Coefficients (MFCCs), spectral features, audio classification problem, CNN, computer vision
+**Keywords**: librosa, audio processing, short-time Fourier transform, spectrogram, Mel-Frequency Cepstral Coefficients (MFCCs), spectral features, audio machine learning problem, CNN
 
 This folder contains tutorial notebooks providing an overview to audio processing techniques:
 - `DFT, STFT, Spectrograms and MFCCs.ipynb` introduces the basics of the discrete Fourier transform (DFT), the short-time Fourier transform (STFT), spectrograms and Mel-Frequency Cepstral Coefficients (MFCCs), illustrated with examples
