@@ -107,3 +107,19 @@ In a separate [repo](https://github.com/cedricyu803/e2e_disaster_tweets), we imp
 See https://github.com/cedricyu803/blackblaze_hdd_pyspark.
 
 We provide an end-to-end PySpark example with the 'Blackblaze hard drive failure prediction' example, in which we predict from the S.M.A.R.T. telemetry from a hard drive whether it has failed. The goal of this exercise is to showcase the use of **PySpark** to perform data science tasks on a real dataset: from EDA, date cleaning and preprocessing, to feature engineering and scaling, ML model training, to inference.
+
+**10. Audio data analysis**
+
+**Keywords**: librosa, audio processing, short-time Fourier transform, spectrogram, Mel-Frequency Cepstral Coefficients (MFCCs), spectral features, audio classification problem, CNN, computer vision
+
+This folder contains tutorial notebooks providing an overview to audio processing techniques:
+- `DFT, STFT, Spectrograms and MFCCs.ipynb` introduces the basics of the discrete Fourier transform (DFT), the short-time Fourier transform (STFT), spectrograms and Mel-Frequency Cepstral Coefficients (MFCCs), illustrated with examples
+- `librosa Audio Feature Extraction.ipynb` introduces the `librosa` package for music and audio analysis. We use this package to extract spectral features from audio data, illustrated with examples
+
+In `1_GTZAN_genre_classification`, we provide a worked example of a *machine learning problem on audio datasets*. Specifically, we consider the *GTZAN Genre Collection* dataset, available at http://marsyas.info/downloads/datasets.html. Our task is to build a model that classifies a music excerpt into music genres. 
+
+We take two different approaches.
+
+1) In `master_DNN.ipynb`, we extract spectral features from an audio (.wav) file, which are then used as input to train a neural network with 4 dense layers. The model achieved a validation set accuracy score of 0.69. With the same input we also trained an XGBoost classifier, which achieved a validation accuracy of 0.63.
+
+2) In `master_CNN.ipynb`, we construct spectrograms as image files from an audio (.wav) file, and use them as inputsto train a simple convolutional neural network (CNN) with 3 convolutional blocks and two dense layers. We consider both coloured and grayscaled spectrograms, as well as the grayscaled MFCCs. We found that using the coloured spectrograms, our model achieved a validation accuracy of 0.385, whereas using the *grayscaled* spectrograms resulted in a validation accuracy of 0.290. Using the *grayscale* MFCCs, the model achieved a validation accuracy of 0.465. We expect the results to improve if we perform use a pre-trained computer vision model, and perform transfer learning and fine-tuning with our dataset.
