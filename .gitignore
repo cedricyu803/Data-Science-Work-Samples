@@ -1,2 +1,11 @@
 .venv/
 .vscode/
+.ipynb_checkpoints/
+__pycache__/
+
+*.csv
+genres/
+genres_mf/
+mfccs/
+spectrograms/
+2_Trigger word detection/
