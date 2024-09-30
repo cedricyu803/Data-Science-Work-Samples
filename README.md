@@ -7,7 +7,7 @@ New in 2024:
 - "08. End-to-end example with the Disater Tweets dataset"
   - Keywords: **FastAPI**, **Streamlit**, **GitHub workflow**
   - Linked from a separate [repo](https://github.com/cedricyu803/e2e_disaster_tweets).
-- "10. Audio data analysis (last updated 2022)"
+- "10. Audio data analysis and music genre classification (last updated 2022)"
   - Keywords: **librosa**, audio processing, short-time Fourier transform (**STFT**), **spectrogram**, Mel-Frequency Cepstral Coefficients (**MFCC**s), spectral features, audio machine learning problem, CNN
 
 
@@ -111,7 +111,7 @@ See https://github.com/cedricyu803/blackblaze_hdd_pyspark.
 
 We provide an end-to-end PySpark example with the 'Blackblaze hard drive failure prediction' example, in which we predict from the S.M.A.R.T. telemetry from a hard drive whether it has failed. The goal of this exercise is to showcase the use of **PySpark** to perform data science tasks on a real dataset: from EDA, date cleaning and preprocessing, to feature engineering and scaling, ML model training, to inference.
 
-**10. Audio data analysis**
+**10. Audio data analysis and music genre classification**
 
 **Keywords**: librosa, audio processing, short-time Fourier transform, spectrogram, Mel-Frequency Cepstral Coefficients (MFCCs), spectral features, audio machine learning problem, CNN
 
