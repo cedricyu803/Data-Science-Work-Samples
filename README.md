@@ -1,10 +1,10 @@
 Last updated: October 2024
 
 New in 2024:
-- "9. Machine learning with **PySpark**: Blackblaze hard drive failure prediction"
+- "09. Machine learning with **PySpark**: Blackblaze hard drive failure prediction"
   - Keywords: **PySpark**
   - Linked from a separate [repo](https://github.com/cedricyu803/blackblaze_hdd_pyspark)
-- "8. End-to-end example with the Disater Tweets dataset"
+- "08. End-to-end example with the Disater Tweets dataset"
   - Keywords: **FastAPI**, **Streamlit**, **GitHub workflow**
   - Linked from a separate [repo](https://github.com/cedricyu803/e2e_disaster_tweets).
 - "10. Audio data analysis (last updated 2022)"
@@ -19,7 +19,7 @@ Due to copyrights, I have removed the datasets and pre-trained models.
 
 Each folder contains a PDF report of what I have done, as well as the relevant Python scripts and some plots.
 
-**1. Detroit Blight Ticket Compliance**
+**01. Detroit Blight Ticket Compliance**
 
 **Keywords**: tabular, classification, cross validation. Time series forecast, autoregression
 
@@ -33,7 +33,7 @@ We then train a few models, namely KNeighborsClassifier, XGBClassifier, RandomFo
 
 We explore the monthly aggregated compliance rate as a time series and find that it can be described by an AR(1) model. We also explore the impact of dimensionality reduction on model performance.
 
-**2. Competitive Data Science: Predict Future Sales**
+**02. Competitive Data Science: Predict Future Sales**
 
 **Keywords**: time series, regression, RegEx, feature encoding and engineering, lag features, feature importance
 
@@ -45,7 +45,7 @@ In our exploratory data analysis, we identify seasonal trends on the sales, as w
 
 We then train three tree-based models: XGBRegressor, RandomForestRegressor and LGBMRegressor, chosen due to their superior performance and faster training time. We also explore the feature importances. Our best RMSE on the test set is 1.50672.
 
-**3. New York City Taxi Fare Prediction**
+**03. New York City Taxi Fare Prediction**
 
 **Keywords**: large dataset, time series, regression, reverse geocoding, KDTree
 
@@ -59,7 +59,7 @@ We train XGBRegressor and LGBMRegressor on 20M of the 55M training samples (to f
 
 We also performed a baseline model evaluation with minimal pre-processing on Google Cloud.
 
-**4. IMDB Movie Review Sentiment Classification**
+**04. IMDB Movie Review Sentiment Classification**
 
 **Keywords**: NLP, text preprocessing, NLTK, TfidfVectorizer, GloVe Embedding, LSTM, Huggingface BERT transformer
 
@@ -69,7 +69,7 @@ We first perform text cleanup and pre-processing. We make use of various techniq
 
 All these approaches result in similar AUC validation and test socres, with the transformer network giving the best score (0.92304). The similarity in scores suggests that the order of the words is only marginally important. Given the significantly higher computational costs and slight gain in performance of the neural netowrk models, TfidfVectorizer turns out to be the most cost-effective option.
 
-**5. Disaster Tweets Classification**
+**05. Disaster Tweets Classification**
 
 **Keywords**: NLP, text preprocessing, NLTK, TfidfVectorizer, GloVe Embedding, LSTM, Huggingface BERT transformer
 
@@ -79,13 +79,13 @@ Informed by an exploratory data analysis, we perform a text pre-processing, and 
 
 All these approaches result in similar F1 scores, with the transformer network giving the best score (0.80784). Due to the small dataset size, no model has a significantly longer training time. This however contributes to a lower-than-desired performance and overfitting in the LSTM-based networks. 
 
-**6. Named Entity Recognition in Resumes**
+**06. Named Entity Recognition in Resumes**
 
 **Keywords**: NLP, named-entity recognition, text preprocessing, sequence classification, Huggingface, BERT tokenization, BERT transformer
 
 We perform a named-entity recognition task on a dataset of resumes. Our approach is based on an assignment in the Sequence Models course on Coursera, offered by DeepLearning.AI. We expand it by studying the raw data, performing a more accurate and streamlined tokenisation, before re-training a Huggingface transformer model. Evaluating the model performance on the F1 score, we find a macro-averaged F1 score of 0.71 on the validation set.
 
-**7. Time Series: Global Temperatures**
+**07. Time Series: Global Temperatures**
 
 **Keywords**: time series forecasting, rolling forecast, statistical models, stationarity, autocorrelation, autoregression, LSTM, sequence models
 
@@ -93,7 +93,7 @@ We study the global temperatures dataset available on Kaggle. In the Jupyter not
 
 In the end, on the validation set (yearly average temperature in 1986-2015), the mean absolute error (MAE) from LSTM fitted on first difference using rolling forecast is the lowest: 0.14682. This is only slight lower than that from using fixed partition. It is to be compared to the MAE of 0.18931 from naive forecast (lag 1), and 0.15548 from the AR(3) model using rolling forecast.
 
-**8. End-to-end example with the Disater Tweets dataset**
+**08. End-to-end example with the Disater Tweets dataset**
 
 **Keywords**: FastAPI, Streamlit, deployment, GitHub workflow, end-to-end (e2e), NLP, text preprocessing, NLTK, TfidfVectorizer
 
@@ -103,7 +103,7 @@ We provide an end-to-end example based on the 'Disaster Tweet Classification' ex
 
 In a separate [repo](https://github.com/cedricyu803/e2e_disaster_tweets), we implement a) a training pipeline, b) an inference **FastAPI** backend, and c) an example **Streamlit** app to query the FastAPI backend.
 
-**9. Machine learning with PySpark: Blackblaze hard drive failure prediction**
+**09. Machine learning with PySpark: Blackblaze hard drive failure prediction**
 
 **Keywords**: PySpark, time series
 
