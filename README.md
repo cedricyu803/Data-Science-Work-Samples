@@ -1,14 +1,8 @@
-Last updated: October 2024
+Last updated: June 2026
 
-New in 2024:
-- "09. Machine learning with **PySpark**: Blackblaze hard drive failure prediction"
-  - Keywords: **PySpark**
-  - Linked from a separate [repo](https://github.com/cedricyu803/blackblaze_hdd_pyspark)
-- "08. End-to-end example with the Disater Tweets dataset"
-  - Keywords: **FastAPI**, **Streamlit**, **GitHub workflow**
-  - Linked from a separate [repo](https://github.com/cedricyu803/e2e_disaster_tweets).
-- "10. Audio data analysis and music genre classification (last updated 2022)"
-  - Keywords: **librosa**, audio processing, short-time Fourier transform (**STFT**), **spectrogram**, Mel-Frequency Cepstral Coefficients (**MFCC**s), spectral features, audio machine learning problem, CNN
+New in 2026:
+- "11: Hillstrom E-mail marketing campaign causal inference"
+  - Keywords: causal inference, A/B test
 
 
 # Data Science Work Samples
@@ -126,3 +120,13 @@ We take two different approaches.
 1) In `master_DNN.ipynb`, we extract spectral features from an audio (.wav) file, which are then used as input to train a neural network with 4 dense layers. The model achieved a validation set accuracy score of 0.69. With the same input we also trained an XGBoost classifier, which achieved a validation accuracy of 0.63.
 
 2) In `master_CNN.ipynb`, we construct spectrograms as image files from an audio (.wav) file, and use them as inputsto train a simple convolutional neural network (CNN) with 3 convolutional blocks and two dense layers. We consider both coloured and grayscaled spectrograms, as well as the grayscaled MFCCs. We found that using the coloured spectrograms, our model achieved a validation accuracy of 0.385, whereas using the *grayscaled* spectrograms resulted in a validation accuracy of 0.290. Using the *grayscale* MFCCs, the model achieved a validation accuracy of 0.465. We expect the results to improve if we perform use a pre-trained computer vision model, and perform transfer learning and fine-tuning with our dataset.
+
+**11: Hillstrom E-mail marketing campaign causal inference**
+
+**Keywords**: causal inference, A/B test
+
+In the this notebook we explore causal inference techniques using the Hillstrom Email Marketing dataset, which contains the results of a randomised email campaign. The analysis begins with naive estimates of campaign effectiveness and explores treatment effects across customer segments using pre-treatment covariates. Although the randomised design allows unbiased estimation of the average treatment effect (ATE) through simple treatment–control comparisons, the dataset also serves as a useful framework for demonstrating common causal inference methodologies used in observational settings.
+
+The notebook proceeds to estimate propensity scores, assess covariate balance using standardised mean differences (SMD), and estimate treatment effects using propensity score matching (ATT) and inverse propensity weighting (ATE). Finally, heterogeneous treatment effects are explored using causal forests to estimate Conditional Average Treatment Effects (CATE), illustrating how treatment effects can vary across customers and how such estimates can be used to inform uplift-based targeting strategies.
+
+The objective is not only to estimate whether the campaign was effective on average, but also to demonstrate a practical workflow for moving from average treatment effect estimation to customer-level treatment effect modelling and targeted intervention design.
