@@ -1,0 +1,27 @@
+# data_dir: ml-latest-small
+data_dir: ml-latest
+
+split_specs:
+  train_als_frac: 0.8
+  val_als_frac: 0.1
+  val_ranker_frac: 0.1
+
+retrieval_model_specs:
+  factors: 64
+  regularization: 0.01
+  iterations: 20
+  # alpha: 40  # for implicit feedback; not required for explicit feedback e.g. ratings
+
+retrieval_specs:
+  n_candidates: 100
+
+ranker_specs:
+  k: 10
+
+ranker_model_specs:
+  objective: rank:pairwise
+  n_estimators: 300
+  max_depth: 6
+  learning_rate: 0.05
+  subsample: 0.8
+  colsample_bytree: 0.8

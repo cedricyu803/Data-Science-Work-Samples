@@ -3,6 +3,8 @@ Last updated: June 2026
 New in 2026:
 - "11: Hillstrom E-mail marketing campaign causal inference"
   - Keywords: causal inference, A/B test
+- "12: Recommendation system for MovieLens dataset" 
+  - Keywords: recommendation system, retreieval-ranking model, ALS, XGBRanker
 
 
 # Data Science Work Samples
@@ -130,3 +132,9 @@ In the this notebook we explore causal inference techniques using the Hillstrom 
 The notebook proceeds to estimate propensity scores, assess covariate balance using standardised mean differences (SMD), and estimate treatment effects using propensity score matching (ATT) and inverse propensity weighting (ATE). Finally, heterogeneous treatment effects are explored using causal forests to estimate Conditional Average Treatment Effects (CATE), illustrating how treatment effects can vary across customers and how such estimates can be used to inform uplift-based targeting strategies.
 
 The objective is not only to estimate whether the campaign was effective on average, but also to demonstrate a practical workflow for moving from average treatment effect estimation to customer-level treatment effect modelling and targeted intervention design.
+
+**12: Recommendation system for MovieLens dataset**
+
+**Keywords**: recommendation system, retreieval-ranking model, ALS, XGBRanker
+
+We build a recommendation system on the MovieLens-1M dataset. The system is a two-stage retrieval-ranker system, consisting of an ALS matrix factorisation model to retrieval relevant items for a given user, followed by an XGBoost ranker model which ranks the retrieved items and recommends a subset of those as highest ranked items.
